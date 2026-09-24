@@ -231,7 +231,7 @@ export function startWaiter({ stage, canWalk = () => true, onClink, pickDrink, g
 }
 
 /** An emoji drink flying end-over-end in an arc. */
-function throwDrink(drink, a, b, onLand) {
+export function throwDrink(drink, a, b, onLand) {
   const el = document.createElement('span');
   el.className = 'fly-drink';
   el.textContent = drink.emoji;

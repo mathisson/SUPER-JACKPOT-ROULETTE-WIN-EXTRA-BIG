@@ -6,6 +6,7 @@ import { bonusDue, offerBonus } from './bonus.js';
 import { createBar } from './booze.js';
 import { watchAd } from './ads.js';
 import { createSlots } from './slots.js';
+import { createVip } from './vip.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 
@@ -944,6 +945,7 @@ const MAYBES = [
   ['🏆', 'Leaderboard of Shame, ranked by the biggest fake loss in one spin', 'someday'],
   ['🐔', 'Chicken mode: the ball is a tiny rubber chicken. Pays the same. Sounds worse.', 'please'],
   ['🍸', 'Free drinks: a waiter walks past every 30 seconds and never stops at your table', 'LIVE ✅'],
+  ['🍾', 'VIP bottle service: bottle girls, sparklers, and your song from YouTube', 'LIVE ✅'],
   ['🎲', 'Craps, purely so we can say "craps" in the game', 'lol'],
   ['🧓', 'Your grandma, who tells you to stop after 3 losses in a row', 'she insists'],
   ['🎟️', 'Loyalty card: earn points for every fake dollar lost, redeem for nothing', 'unlikely'],
@@ -1237,12 +1239,28 @@ const booze = createBar({
 });
 startWaiter({
   stage: document.querySelector('.stage'),
-  canWalk: () => !fxActive() && !document.body.classList.contains('bonus-active') && !slots?.isOpen(),
+  canWalk: () => !fxActive() && !document.body.classList.contains('bonus-active') && !document.body.classList.contains('vip-party-on') && !slots?.isOpen(),
   onClink: () => sound.clink(),
   pickDrink: booze.pickDrink,
   getTarget: booze.target,
   onDrink: booze.add,
   onBusy: booze.blackedOut,
+});
+
+// ---------- 🍾 drinks menu + VIP bottle service ----------
+createVip({
+  button: $('drinksBtn'),
+  sound,
+  music,
+  musicOn: () => musicOn,
+  toast,
+  booze,
+  getBalance: () => balance,
+  spend: (v) => {
+    balance -= v;
+    render();
+  },
+  onBroke: () => $('addFundsBtn').classList.add('pulse'),
 });
 
 // ---------- 🎰 SLOTS (DING DING DING) ----------
