@@ -145,6 +145,18 @@ A rubber stamp slams **UNPAID** onto the total. Pay it, or say *"Wash dishes ins
 
 You get 30 seconds, $20 a plate and $5 per gross thing. Wash off the whole tab and the chef might slip you a tip. Fall short and the manager writes off the rest, but you're **banned from the bar for 90 seconds**.
 
+### 🍺 DAVE'S REVENGE
+Remember Dave, the guy who crashed your bottle party? **He remembers you.** (If you skipped the party, you'll meet him the first time you get properly drunk.)
+
+From then on Dave drops by your roulette table in 3D, climbs **onto the table** next to the wheel, beer in hand, tie round his head, and watches you play. Win and he celebrates like it was his money. Lose and he slumps, then asks to borrow some, and **takes the chips straight off your rack**. He's good for it. (He owes you forever. Once in a blue moon he pays back $1.) Click him and he'll tell you your money is coming *next week, definitely next week*.
+
+When he's not at your table, he **texts you**: *"u up? 🎰"*, *"bro i found a system. red. always red"*, *"i put my car on 17"*. Tap a text to leave him on read. He notices.
+
+### 🤕 THE MORNING AFTER
+Close the tab while you're drunk and the next time you open it, you **wake up in a 3D hotel room**. The blinds open by themselves, the sun is unreasonable, dust floats in the light, your phone on the nightstand won't stop buzzing (it's Dave), there's a **$5 glass of water**, and there is a **traffic cone in your bed**. Nobody knows why.
+
+Drink the $5 water to feel fine, or put your sunglasses on and go back to the casino **hungover**: for a minute everything is too bright, throbbing, and every sound is too loud.
+
 ### 📺 WATCH AN AD, GET $100
 Completely broke? At exactly **$0** with nothing on the table, a **Watch ad: +$100** button appears. Enjoy a message from our totally real sponsors: Hot Singles (they're dice), Waiter Academy™, Grandma's Cookies, Download More Money.biz and friends. It's "Ad 1 of 1"… until it becomes **Ad 2 of 1**. The skip button counts down, then refuses. After 15 seconds, claim your $100.
 
@@ -183,6 +195,8 @@ On narrow screens the table flips vertical: 0 on top, numbers running down the s
 - ~~🍸 **Free drinks**, a waiter who walks past every 30 seconds and never stops at your table~~ ✅ **SHIPPED**
 - ~~🍾 **VIP bottle service**, with bottle girls, sparklers and your own song from YouTube~~ ✅ **SHIPPED**
 - ~~🧽 **A bar tab** you can pay off by washing dishes~~ ✅ **SHIPPED**
+- ~~🍺 **Dave's revenge**: he borrows your chips and texts you "u up?"~~ ✅ **SHIPPED**
+- ~~🤕 **Hangovers**, if you close the tab drunk~~ ✅ **SHIPPED**
 - 🎲 **Craps**, purely so we can put the word "craps" in a README
 - 🧓 **Your grandma**, who shows up and tells you to stop after 3 losses in a row
 - 🎟️ **Loyalty card**, earn points for every fake dollar lost and redeem them for absolutely nothing
@@ -234,6 +248,7 @@ It's a static site. [vercel.json](vercel.json) tells Vercel to serve the folder 
 | **Click the waiter** | Snatch a free drink 🍸 |
 | **🍾 Drinks** | Open the menu. Big bottles bring bottle girls and your song 💃 |
 | `T` (during a party) | Tap the beat to sync the dancers |
+| **Click Dave** | Ask for your money back (he will not give it back) |
 | **💧 Water $5** | Sober up a little (overpriced, as is tradition) |
 | **Drag / scroll** on the wheel | Orbit / zoom the camera |
 
@@ -253,6 +268,9 @@ js/booze.js           the drink stack, the Tipsy-meter and the consequences
 js/vip.js             the paper drinks menu, bottle girls and the YouTube DJ booth
 js/tab.js             the bar tab: fees, the waiter, paying up or washing it off
 js/kitchen3d.js       the 3D receipt printer and the 3D dishwashing sink
+js/dave.js            Dave: in 3D on your table, borrowing chips, texting you
+js/hangover.js        noticing you left drunk, the morning after, being hungover
+js/hangover3d.js      the 3D hotel room: blinds, sunbeams, buzzing phone, the cone
 js/ads.js             the totally real sponsors ($100 for the broke)
 js/slots.js           DRAGON RUSH WIN BIG: tumbles, free spins, buy bonus, autoplay
 js/rush-math.js       the slot maths: clusters, tumbles, ×1024 multiplier spots

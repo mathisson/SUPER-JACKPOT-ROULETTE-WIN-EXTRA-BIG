@@ -10,7 +10,7 @@ const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const ease = (t) => 1 - (1 - t) ** 3;
 
 /** One renderer per overlay, thrown away when it closes. */
-class Stage3D {
+export class Stage3D {
   constructor(container, fov) {
     this.container = container;
     const r = (this.renderer = new THREE.WebGLRenderer({ antialias: true }));
@@ -92,7 +92,7 @@ class Stage3D {
   }
 }
 
-const texFrom = (canvas, renderer) => {
+export const texFrom = (canvas, renderer) => {
   const t = new THREE.CanvasTexture(canvas);
   t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = renderer.capabilities.getMaxAnisotropy();

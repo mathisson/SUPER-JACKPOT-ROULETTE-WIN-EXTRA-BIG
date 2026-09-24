@@ -149,6 +149,8 @@ export function createBar({ stage, store, sound, toast, getBalance, spend }) {
   return {
     add,
     level: () => current.fx,
+    bac: () => bac,
+    count: () => drinks.length,
     target: () => {
       const r = glassesEl.getBoundingClientRect();
       return { x: r.left + 50, y: r.bottom - 20 - Math.min(3, Math.floor(drinks.length / 4)) * 24 };
