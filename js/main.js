@@ -7,6 +7,7 @@ import { createBar } from './booze.js';
 import { watchAd } from './ads.js';
 import { createSlots } from './slots.js';
 import { createVip } from './vip.js';
+import { createTab } from './tab.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 
@@ -893,6 +894,14 @@ let toastTimer;
 function toast(msg) {
   const t = $('toast');
   t.textContent = msg;
+  // It's a popover, so it lives in the top layer. Re-showing it puts it back on top of any
+  // modal dialog (like the drinks menu) that opened after it, instead of behind the backdrop.
+  if (t.showPopover) {
+    try {
+      if (t.matches(':popover-open')) t.hidePopover();
+      t.showPopover();
+    } catch {}
+  }
   t.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
@@ -946,6 +955,7 @@ const MAYBES = [
   ['🐔', 'Chicken mode: the ball is a tiny rubber chicken. Pays the same. Sounds worse.', 'please'],
   ['🍸', 'Free drinks: a waiter walks past every 30 seconds and never stops at your table', 'LIVE ✅'],
   ['🍾', 'VIP bottle service: bottle girls, sparklers, and your song from YouTube', 'LIVE ✅'],
+  ['🧽', "Bar tab: can't pay? Wash dishes in the kitchen until the chef lets you go", 'LIVE ✅'],
   ['🎲', 'Craps, purely so we can say "craps" in the game', 'lol'],
   ['🧓', 'Your grandma, who tells you to stop after 3 losses in a row', 'she insists'],
   ['🎟️', 'Loyalty card: earn points for every fake dollar lost, redeem for nothing', 'unlikely'],
@@ -1239,7 +1249,7 @@ const booze = createBar({
 });
 startWaiter({
   stage: document.querySelector('.stage'),
-  canWalk: () => !fxActive() && !document.body.classList.contains('bonus-active') && !document.body.classList.contains('vip-party-on') && !slots?.isOpen(),
+  canWalk: () => !fxActive() && !document.body.classList.contains('bonus-active') && !document.body.classList.contains('vip-party-on') && !document.body.classList.contains('kitchen-on') && !slots?.isOpen(),
   onClink: () => sound.clink(),
   pickDrink: booze.pickDrink,
   getTarget: booze.target,
@@ -1247,8 +1257,32 @@ startWaiter({
   onBusy: booze.blackedOut,
 });
 
+// ---------- 🧾 the bar tab (and the sink, for when you can't pay it) ----------
+const tab = createTab({
+  store,
+  sound,
+  music,
+  toast,
+  booze,
+  getBalance: () => balance,
+  spend: (v) => {
+    balance -= v;
+    render();
+  },
+  earn: (v) => {
+    balance += v;
+    render();
+  },
+  pause3d: () => wheel.pause(),
+  resume3d: () => !slots?.isOpen() && wheel.resume(),
+  isBusy: () =>
+    spinning || fxActive() || !!document.querySelector('dialog[open]') ||
+    ['vip-party-on', 'bonus-active'].some((c) => document.body.classList.contains(c)),
+});
+
 // ---------- 🍾 drinks menu + VIP bottle service ----------
 createVip({
+  tab,
   button: $('drinksBtn'),
   sound,
   music,

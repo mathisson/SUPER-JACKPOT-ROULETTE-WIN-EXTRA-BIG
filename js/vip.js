@@ -252,8 +252,9 @@ function dudeSvg() {
  * @param booze     the bar (add, target, blackedOut)
  * @param getBalance / spend  wallet
  * @param onBroke   () => void, nudge the player towards the fake cashier
+ * @param tab     the bar tab: bar drinks go on it instead of being paid for
  */
-export function createVip({ button, sound, music, musicOn, toast, booze, getBalance, spend, onBroke }) {
+export function createVip({ button, sound, music, musicOn, toast, booze, getBalance, spend, onBroke, tab }) {
   // A paper menu: slides up closed, the leather cover swings open onto two parchment pages.
   // The cover's inside face *is* the left page (the bar), the right page is bottle service.
   const itemHtml = (it, n) => `<button type="button" class="vip-item${it.gold ? ' gold' : ''}" data-id="${it.id}" style="--n:${n}">
@@ -291,7 +292,7 @@ export function createVip({ button, sound, music, musicOn, toast, booze, getBala
           </div>
           <div class="pm-face pm-back pm-page pm-left">
             <h2 class="pm-title">Carte des Boissons</h2>
-            <p class="pm-sub">The waiter's drinks are free. These are not.<br>Prices include a mandatory vibe charge.</p>
+            <p class="pm-sub">Bar drinks go on your tab 🧾. Bottles are paid up front.<br>We've met people like you.</p>
             ${sectionHtml(MENU[0], 'pm-bar')}
           </div>
         </div>
@@ -383,7 +384,7 @@ export function createVip({ button, sound, music, musicOn, toast, booze, getBala
     const bal = getBalance();
     modal.querySelectorAll('.vip-item').forEach((b) => {
       const it = ITEMS.find((x) => x.id === b.dataset.id);
-      b.classList.toggle('pricey', it.price > bal);
+      b.classList.toggle('pricey', (it.crew || !tab) && it.price > bal);
     });
   }
 
@@ -426,6 +427,10 @@ export function createVip({ button, sound, music, musicOn, toast, booze, getBala
     const b = e.target.closest('.vip-item');
     if (!b) return;
     const it = ITEMS.find((x) => x.id === b.dataset.id);
+    if (!it.crew && tab) {
+      if (booze.blackedOut()) return toast("You're asleep in the parking lot. The bar is closed to you. 💤");
+      return tab.canOrder() && serve(it);
+    }
     if (!canAfford(it)) return;
     if (!it.crew) return serve(it);
     order = it;
@@ -491,9 +496,10 @@ export function createVip({ button, sound, music, musicOn, toast, booze, getBala
     startParty(it, song, it.gold ? outfit : 'sequin');
   });
 
-  /** Small stuff: pay, then the bartender throws it at your glass stack. */
+  /** Small stuff: on the tab (or paid), then the bartender throws it at your glass stack. */
   function serve(it) {
-    spend(it.price);
+    if (tab) tab.add(it);
+    else spend(it.price);
     sound.clink();
     close(true);
     const r = button.getBoundingClientRect();
