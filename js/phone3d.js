@@ -165,6 +165,9 @@ export class SelfieCam {
 
     const s = (this.scene = new THREE.Scene());
     s.background = new THREE.Color(0x12060a);
+    const pmrem = new THREE.PMREMGenerator(r);
+    this.env = s.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture; // so gold looks gold
+    pmrem.dispose();
     s.add(new THREE.HemisphereLight(0xffe8f0, 0x200a10, 0.8));
     const key = new THREE.DirectionalLight(0xfff0e0, 1.7);
     key.position.set(1, 3, 4);
@@ -271,6 +274,7 @@ export class SelfieCam {
         m.dispose();
       });
     });
+    this.env?.dispose();
     this.renderer.dispose();
     this.renderer.forceContextLoss?.();
   }

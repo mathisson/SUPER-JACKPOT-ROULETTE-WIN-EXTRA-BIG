@@ -511,8 +511,9 @@ export function createDave({ wheel, stage, store, sound, toast, booze, getBalanc
       sound.blip(f, 0.16, 'triangle', 0.11, i * 0.085);
       sound.blip(f * 2, 0.06, 'sine', 0.03, i * 0.085);
     });
+    // (browsers only allow vibrating once you have interacted with the page)
     try {
-      navigator.vibrate?.([70, 50, 70]);
+      if (navigator.userActivation?.hasBeenActive) navigator.vibrate?.([70, 50, 70]);
     } catch {}
   }
 
