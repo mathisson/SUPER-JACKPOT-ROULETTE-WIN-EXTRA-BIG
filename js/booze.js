@@ -150,6 +150,8 @@ export function createBar({ stage, store, sound, toast, getBalance, spend }) {
     add,
     level: () => current.fx,
     bac: () => bac,
+    /** Food, sleep, a cab ride: take n units off (without the "you feel lucky" toasts). */
+    sober: (n) => setBac(bac - n, false),
     count: () => drinks.length,
     target: () => {
       const r = glassesEl.getBoundingClientRect();
