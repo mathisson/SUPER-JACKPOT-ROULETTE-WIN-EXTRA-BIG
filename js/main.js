@@ -1009,7 +1009,39 @@ $('addFundsBtn').addEventListener('click', () => {
   $('addFundsBtn').classList.remove('pulse');
   resetForm();
   modal.showModal();
-  f.number.focus();
+  if (payMethod === 'card') f.number.focus();
+});
+
+// 💳 card or 📱 (fake) Swish
+let payMethod = 'card';
+function setPayMethod(m) {
+  payMethod = m;
+  document.querySelectorAll('.pay-tab').forEach((t) => {
+    t.classList.toggle('active', t.dataset.pay === m);
+    t.setAttribute('aria-selected', t.dataset.pay === m);
+  });
+  document.querySelectorAll('.pay-pane').forEach((p) => (p.hidden = p.dataset.pane !== m));
+  $('formError').textContent = '';
+}
+document.querySelectorAll('.pay-tab').forEach((t) => t.addEventListener('click', () => setPayMethod(t.dataset.pay)));
+$('swishBtn').addEventListener('click', () => {
+  if (!depositAmount) return;
+  $('swishAmt').textContent = money(depositAmount);
+  $('swishPick').hidden = true;
+  $('swishPhone').hidden = false;
+  $('swishApprove').hidden = false;
+  $('swishWait').hidden = true;
+  sound.blip(1320, 0.08, 'sine', 0.1);
+  sound.blip(1760, 0.12, 'sine', 0.1, 0.09);
+});
+$('swishApprove').addEventListener('click', () => {
+  $('swishApprove').hidden = true;
+  $('swishWait').hidden = false;
+  const amount = depositAmount;
+  setTimeout(() => {
+    $('swishPhone').hidden = true;
+    deposit(amount, '📱 Swished');
+  }, 1500);
 });
 $('closeModal').addEventListener('click', () => modal.close());
 modal.addEventListener('click', (e) => {
@@ -1073,6 +1105,7 @@ function updateAmount() {
     b.classList.toggle('active', !f.custom.value && +b.dataset.amount === depositAmount)
   );
   $('payBtn').textContent = depositAmount ? `Deposit ${money(depositAmount)}` : 'Deposit';
+  $('swishBtn').textContent = `📱 Swish ${money(depositAmount || 0)}`;
 }
 
 function updatePreview() {
@@ -1104,6 +1137,8 @@ function resetForm() {
   $('formError').textContent = '';
   form.querySelectorAll('.invalid').forEach((el) => el.classList.remove('invalid'));
   depositAmount = 500;
+  $('swishPick').hidden = false;
+  $('swishPhone').hidden = true;
   updateAmount();
   updatePreview();
 }
@@ -1151,22 +1186,26 @@ form.addEventListener('submit', (e) => {
       $('formError').textContent = 'Card declined (that’s the decline test card 😉)';
       return;
     }
-    balance += amount;
-    // once the dialog closes, the cashier's chips fly into your rack
-    pieces(amount, 10).forEach((p, i) =>
-      fly($('addFundsBtn'), rackPoint(p.denom), p.denom, {
-        delay: 1550 + i * 90,
-        onLand: () => { addBank(p.value); sound.chip(); },
-      })
-    );
-    render();
-    sound.cash();
-    $('successAmount').textContent = money(amount);
-    $('success').hidden = false;
-    setTimeout(() => modal.open && modal.close(), 1400);
-    toast(`+${money(amount)} fake dollars added`);
+    deposit(amount);
   }, 1300);
 });
+
+function deposit(amount, how = '') {
+  balance += amount;
+  // once the dialog closes, the cashier's chips fly into your rack
+  pieces(amount, 10).forEach((p, i) =>
+    fly($('addFundsBtn'), rackPoint(p.denom), p.denom, {
+      delay: 1550 + i * 90,
+      onLand: () => { addBank(p.value); sound.chip(); },
+    })
+  );
+  render();
+  sound.cash();
+  $('successAmount').textContent = money(amount);
+  $('success').hidden = false;
+  setTimeout(() => modal.open && modal.close(), 1400);
+  toast(`${how ? how + ': ' : ''}+${money(amount)} fake dollars added`);
+}
 
 $('resetBalance').addEventListener('click', () => {
   if (spinning) return;
