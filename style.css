@@ -1395,10 +1395,17 @@ input.invalid { border-color: var(--neg); }
 }
 
 /* ================= Being drunk ================= */
-body.drunk-1 main { animation: sway 7s ease-in-out infinite; --sway: 0.35deg; }
-body.drunk-2 main { animation: sway 5s ease-in-out infinite; --sway: 0.9deg; }
-body.drunk-3 main { animation: sway 4s ease-in-out infinite; --sway: 1.6deg; }
-body.drunk-4 main { animation: sway 3s ease-in-out infinite, hueTrip 9s linear infinite; --sway: 2.6deg; }
+/* The room sways, not <main> itself: main clips (see the slots section), so the tilted
+   corners can't grow the page and make the scrollbars flicker in and out. The slots room
+   keeps its own slide-in transform, so the sway sits out while you're there. */
+body.drunk-1 { --sway: 0.35deg; --sway-time: 7s; }
+body.drunk-2 { --sway: 0.9deg; --sway-time: 5s; }
+body.drunk-3 { --sway: 1.6deg; --sway-time: 4s; }
+body.drunk-4 { --sway: 2.6deg; --sway-time: 3s; }
+body:is(.drunk-1, .drunk-2, .drunk-3, .drunk-4):not(.in-slots) :is(.stage, .table-area) {
+  animation: sway var(--sway-time) ease-in-out infinite;
+}
+body.drunk-4 main { animation: hueTrip 9s linear infinite; }
 @keyframes sway {
   0%, 100% { transform: rotate(calc(var(--sway) * -1)) translateX(-5px); }
   50% { transform: rotate(var(--sway)) translateX(5px); }
@@ -1573,7 +1580,7 @@ body.drunk-4 .rack-col { animation: sway 2.2s ease-in-out infinite; --sway: 3deg
 }
 
 /* ================= SLOTS: DRAGON RUSH WIN BIG (3D) ================= */
-main { position: relative; overflow-x: clip; }
+main { position: relative; overflow: clip; } /* clip both ways: nothing inside may grow the page */
 .stage, .table-area { transition: transform 1.6s cubic-bezier(0.6, 0, 0.3, 1), opacity 1.2s; }
 body.in-slots .stage, body.in-slots .table-area { transform: translateX(-40%); opacity: 0; pointer-events: none; }
 /* head-bob while you walk between rooms (one bob per footstep) */
