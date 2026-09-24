@@ -1396,19 +1396,21 @@ input.invalid { border-color: var(--neg); }
 
 /* ================= Being drunk ================= */
 /* The room sways, not <main> itself: main clips (see the slots section), so the tilted
-   corners can't grow the page and make the scrollbars flicker in and out. The slots room
-   keeps its own slide-in transform, so the sway sits out while you're there. */
+   corners can't grow the page and make the scrollbars flicker in and out.
+   The sway animates the separate rotate/translate properties, not transform: the stage,
+   table and slots room slide between rooms with transform, and the two stack instead of
+   fighting (a transform animation would cancel the slide and make it snap). */
 body.drunk-1 { --sway: 0.35deg; --sway-time: 7s; }
 body.drunk-2 { --sway: 0.9deg; --sway-time: 5s; }
 body.drunk-3 { --sway: 1.6deg; --sway-time: 4s; }
 body.drunk-4 { --sway: 2.6deg; --sway-time: 3s; }
-body:is(.drunk-1, .drunk-2, .drunk-3, .drunk-4):not(.in-slots) :is(.stage, .table-area) {
+body:is(.drunk-1, .drunk-2, .drunk-3, .drunk-4) :is(.stage, .table-area) {
   animation: sway var(--sway-time) ease-in-out infinite;
 }
 body.drunk-4 main { animation: hueTrip 9s linear infinite; }
 @keyframes sway {
-  0%, 100% { transform: rotate(calc(var(--sway) * -1)) translateX(-5px); }
-  50% { transform: rotate(var(--sway)) translateX(5px); }
+  0%, 100% { rotate: calc(var(--sway) * -1); translate: -5px 0; }
+  50% { rotate: var(--sway); translate: 5px 0; }
 }
 @keyframes hueTrip { to { filter: hue-rotate(360deg); } }
 
