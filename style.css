@@ -3629,3 +3629,53 @@ body.reduce-motion :is(header, main, .stage, .table-area, .slots-view, .rack-col
   z-index: 5;
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 380 800'%3E%3Cg fill='none' stroke='white' stroke-opacity='0.55' stroke-width='1.6'%3E%3Cpath d='M250 520 L310 430 L372 405'/%3E%3Cpath d='M250 520 L205 600 L150 640 L60 700'/%3E%3Cpath d='M250 520 L330 590 L380 610'/%3E%3Cpath d='M250 520 L236 420 L180 330 L140 200'/%3E%3Cpath d='M250 520 L160 505 L40 470'/%3E%3Cpath d='M205 600 L230 690 L220 800'/%3E%3Cpath d='M180 330 L110 340'/%3E%3Cpath d='M310 430 L300 350'/%3E%3Ccircle cx='250' cy='520' r='10'/%3E%3C/g%3E%3C/svg%3E") center/100% 100% no-repeat;
 }
+
+/* ================= 👛 Wallet + ⭐ levels ================= */
+.wallet-stat { align-items: flex-start; padding: 3px 10px; margin: -3px 0; border-radius: 10px; border: 1px solid rgba(224, 180, 92, 0.35); background: rgba(224, 180, 92, 0.08); color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background 0.15s; }
+.wallet-stat:hover { background: rgba(224, 180, 92, 0.18); }
+.wallet-stat strong { color: var(--gold); }
+/* your level, with an XP ring around it */
+.lvl-chip {
+  --p: 0;
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: conic-gradient(var(--gold) calc(var(--p) * 360deg), rgba(255, 255, 255, 0.12) 0);
+  cursor: default;
+}
+.lvl-chip::before { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: #14070c; }
+.lvl-chip b { position: relative; font-size: 15px; color: #ffe9a8; font-variant-numeric: tabular-nums; }
+.lvl-chip::after { content: "LV"; position: absolute; top: -3px; right: -6px; padding: 0 3px; border-radius: 4px; background: var(--gold); color: #2a1a03; font-size: 8px; font-weight: 900; line-height: 12px; }
+.xp-float { position: fixed; z-index: 61; pointer-events: none; font-size: 12px; font-weight: 800; color: #ffe9a8; text-shadow: 0 1px 3px #000; white-space: nowrap; transform: translate(-50%, 0); opacity: 0; }
+
+/* the cash-out dialog */
+.wm-text { margin: 0 0 14px; font-size: 13.5px; color: var(--muted); line-height: 1.45; }
+.wm-stats { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; border-radius: 12px; background: rgba(0, 0, 0, 0.25); }
+.wm-stats div { display: flex; flex-direction: column; }
+.wm-stats small { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+.wm-stats b { font-size: 22px; font-variant-numeric: tabular-nums; }
+.wm-stats div:last-child { text-align: right; }
+.wm-stats div:last-child b { color: var(--gold); }
+.wm-arrow { color: var(--gold); font-size: 20px; }
+.wm-limit { margin: 8px 0 6px; font-size: 13px; }
+.wm-rate { margin: 12px 0 0; font-size: 13px; color: var(--muted); text-align: center; }
+.wm-rate b { color: #ffe9a8; }
+.wm-bar { height: 8px; margin-top: 6px; border-radius: 99px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+.wm-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--gold), #ff9a3c); transition: width 0.3s; }
+#wmRange { width: 100%; margin: 12px 0 8px; accent-color: #e0b45c; }
+.wm-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.wm-chips .st-chip { flex: 1; }
+.wm-go { width: 100%; padding: 12px; font-size: 16px; font-weight: 800; }
+.wm-go:disabled { filter: grayscale(0.8); opacity: 0.6; }
+.wm-foot { margin: 10px 0 0; font-size: 12px; color: var(--muted); text-align: center; }
+
+/* the store's footer: wallet, cash out, level */
+.st-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.st-foot .st-withdraw { padding: 6px 12px; font-size: 13px; font-weight: 800; border-radius: 99px; }
+.st-lvl { margin-left: auto; display: flex; align-items: center; gap: 8px; color: #ffe9a8; font-weight: 700; }
+.st-lvl i { --p: 0; width: 70px; height: 6px; border-radius: 99px; background: linear-gradient(90deg, var(--gold) calc(var(--p) * 100%), rgba(255, 255, 255, 0.12) 0); }
+.st-item.locked .st-try { opacity: 0.75; }
+.st-buy.locked { background: rgba(255, 255, 255, 0.06); color: var(--muted); font-size: 12.5px; }

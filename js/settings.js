@@ -2,6 +2,7 @@
 // a store for hats and bling, and the actual settings (sound, music, Dave, motion).
 
 import { AvatarStage, BASE, CATALOG, SLOTS, REQUIRED_SLOTS, DEFAULT_LOOK, portrait } from './avatar.js';
+import { itemLevel } from './levels.js';
 
 const PHONE_SLOTS = new Set(['phoneSkin', 'wallpaper']);
 
@@ -13,8 +14,12 @@ const byId = (id) => CATALOG.find((c) => c.id === id);
  * @param prefs     [{ id, label, desc, get: () => bool, set: (bool) => void }]
  * @param pause3d / resume3d  only one 3D room renders at a time
  * @param preview   { tone(id), win(id) }: hear a ringtone, see a win style
+ * @param wallet    the store only takes wallet money ({ cash(), spend(v) })
+ * @param levels    fancier items need a level ({ level(), progress() })
+ * @param onWithdraw  open the cash-out dialog
  */
-export function createSettings({ button, store, sound, toast, getBalance, spend, prefs, pause3d, resume3d, preview: demo = {} }) {
+export function createSettings({ button, store, sound, toast, wallet, levels, onWithdraw, prefs, pause3d, resume3d, preview: demo = {} }) {
+  const getBalance = () => wallet.cash();
   let look = { ...DEFAULT_LOOK, ...store.get('fr.look', {}) };
   let owned = new Set(store.get('fr.owned', ['tshirt']));
   CATALOG.filter((c) => c.price === 0).forEach((c) => owned.add(c.id)); // the free defaults
@@ -63,7 +68,11 @@ export function createSettings({ button, store, sound, toast, getBalance, spend,
           <button type="button" data-tab="settings">⚙️ Settings</button>
         </div>
         <div class="st-body"></div>
-        <div class="st-foot">Balance <b class="st-bal"></b></div>
+        <div class="st-foot">
+          <span class="st-wallet">👛 Wallet <b class="st-bal"></b></span>
+          <button type="button" class="btn st-withdraw">Cash out</button>
+          <span class="st-lvl"></span>
+        </div>
       </aside>`;
     document.body.appendChild(el);
     document.body.classList.add('settings-on');
@@ -72,6 +81,7 @@ export function createSettings({ button, store, sound, toast, getBalance, spend,
     pause3d();
     stage = new AvatarStage(el.querySelector('.st-stage'), look);
     el.querySelector('.st-close').addEventListener('click', close);
+    el.querySelector('.st-withdraw').addEventListener('click', () => onWithdraw());
     el.querySelector('.st-tabs').addEventListener('click', (e) => {
       const b = e.target.closest('[data-tab]');
       if (b) show(b.dataset.tab);
@@ -137,10 +147,18 @@ export function createSettings({ button, store, sound, toast, getBalance, spend,
     }
     tab = which;
     el.querySelectorAll('.st-tabs [data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === which));
-    el.querySelector('.st-bal').textContent = money(getBalance());
+    renderFoot();
     const body = el.querySelector('.st-body');
     body.innerHTML = which === 'store' ? storeHtml() : which === 'settings' ? prefsHtml() : characterHtml();
     body.scrollTop = 0;
+  }
+
+  function renderFoot() {
+    if (!el) return;
+    const p = levels.progress();
+    el.querySelector('.st-bal').textContent = money(getBalance());
+    el.querySelector('.st-lvl').innerHTML = `⭐ Level ${p.level} <i style="--p:${(p.into / p.need).toFixed(3)}"></i>`;
+    el.querySelector('.st-lvl').title = `${p.into} / ${p.need} XP to level ${p.level + 1}`;
   }
 
   const swatches = (key, colors) =>
@@ -176,10 +194,11 @@ export function createSettings({ button, store, sound, toast, getBalance, spend,
 
   function storeHtml() {
     const bal = getBalance();
+    const lvl = levels.level();
     const items = CATALOG.filter((c) => c.price > 0 && (storeSlot === 'all' || c.slot === storeSlot));
     const filters = [['all', '✨ All'], ...SLOTS];
     return `
-      <p class="st-note">Spend your winnings on things that matter. Try anything on for free.</p>
+      <p class="st-note">The store only takes wallet money 👛: cash out your chips below. Try anything on for free.</p>
       <div class="st-chips st-filters">${filters
         .map(([v, label]) => `<button type="button" class="st-chip${storeSlot === v ? ' on' : ''}" data-filter="${v}">${label}</button>`)
         .join('')}</div>
@@ -188,10 +207,14 @@ export function createSettings({ button, store, sound, toast, getBalance, spend,
           const has = owned.has(c.id);
           const worn = look[c.slot] === c.id;
           const onTry = trying?.id === c.id;
+          const need = itemLevel(c);
+          const locked = !has && lvl < need;
           const btn = has
             ? `<button type="button" class="btn st-equip${worn ? ' worn' : ''}" data-equip="${c.id}">${worn ? '✓ Equipped' : 'Equip'}</button>`
-            : `<button type="button" class="btn gold st-buy${bal < c.price ? ' broke' : ''}" data-buy="${c.id}">Buy ${money(c.price)}</button>`;
-          return `<div class="st-item${onTry ? ' trying' : ''}${has ? ' owned' : ''}">
+            : locked
+              ? `<button type="button" class="btn st-buy locked" data-buy="${c.id}">🔒 Level ${need} · ${money(c.price)}</button>`
+              : `<button type="button" class="btn gold st-buy${bal < c.price ? ' broke' : ''}" data-buy="${c.id}">Buy ${money(c.price)}</button>`;
+          return `<div class="st-item${onTry ? ' trying' : ''}${has ? ' owned' : ''}${locked ? ' locked' : ''}">
             <button type="button" class="st-try" data-try="${c.id}" title="Try it on">
               <span class="st-emoji">${c.emoji}</span>
               <b>${c.name}</b>
@@ -249,11 +272,15 @@ export function createSettings({ button, store, sound, toast, getBalance, spend,
       show('store');
     } else if (t.dataset.buy) {
       const item = byId(t.dataset.buy);
+      if (levels.level() < itemLevel(item)) {
+        sound.blip(160, 0.2, 'sawtooth', 0.1);
+        return toast(`🔒 ${item.name} unlocks at level ${itemLevel(item)}. You're level ${levels.level()}: keep betting!`);
+      }
       if (getBalance() < item.price) {
         sound.blip(160, 0.2, 'sawtooth', 0.1);
-        return toast(`💳 ${item.name} costs ${money(item.price)}. You have ${money(getBalance())}. The store laughs politely.`);
+        return toast(`👛 ${item.name} costs ${money(item.price)}. Your wallet has ${money(getBalance())}. Cash out some chips first.`);
       }
-      spend(item.price);
+      wallet.spend(item.price);
       owned.add(item.id);
       trying = null;
       sound.cash();
@@ -278,6 +305,16 @@ export function createSettings({ button, store, sound, toast, getBalance, spend,
     isOpen: () => !!el,
     look: () => look,
     owns: (id) => owned.has(id),
+    /** wallet or level changed: redraw, keeping your scroll */
+    refresh() {
+      if (!el) return;
+      const body = el.querySelector('.st-body');
+      const top = body.scrollTop;
+      show(tab);
+      body.scrollTop = top;
+    },
+    /** where the wallet sits on screen right now (for the cash-out animation) */
+    walletEl: () => el?.querySelector('.st-wallet'),
     /** fn(look) whenever your character changes */
     onChange: (fn) => listeners.push(fn),
   };

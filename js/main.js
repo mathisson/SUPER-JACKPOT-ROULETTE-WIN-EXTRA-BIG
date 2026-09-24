@@ -14,6 +14,9 @@ import { createSettings } from './settings.js';
 import { createCourier } from './courier.js';
 import { createPhone } from './phone.js';
 import { createFlair } from './flair3d.js';
+import { createLevels, itemLevel } from './levels.js';
+import { createWallet, dailyLimit, RATE } from './wallet.js';
+import { CATALOG } from './avatar.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 
@@ -40,6 +43,11 @@ const CHIPS = [1, 5, 25, 100, 500, 1000];
 let balance = store.get('fr.balance', START_BALANCE);
 let history = store.get('fr.history', []);
 let session = 0;
+
+// ---------- ⭐ levels, and 👛 the wallet (the only money the store takes) ----------
+const levels = createLevels({ store, onGain: (xp) => gainedXp(xp), onLevelUp: (l) => levelledUp(l) });
+const wallet = createWallet({ store, level: () => levels.level() });
+let pendingCash = 0; // cashed out, but still flying into the wallet
 let bets = new Map();      // betKey -> amount
 let actions = [];          // undo stack: { key, amount }
 let lastBets = null;
@@ -807,6 +815,7 @@ function settle(n) {
   const net = returned - staked;
   balance += returned;
   session += net;
+  levels.bet(net > 0 ? 'win' : net < 0 ? 'loss' : 'push', staked, returned / staked);
 
   history.unshift(n);
   history = history.slice(0, 18);
@@ -859,6 +868,7 @@ function hideResult() {
 function render() {
   $('balance').textContent = money(balance);
   $('onTable').textContent = money(totalBets());
+  renderProgress();
   const s = $('session');
   s.textContent = (session > 0 ? '+' : '') + money(session);
   s.className = session > 0 ? 'pos' : session < 0 ? 'neg' : '';
@@ -1367,11 +1377,9 @@ const settings = createSettings({
   store,
   sound,
   toast,
-  getBalance: () => balance,
-  spend: (v) => {
-    balance -= v;
-    render();
-  },
+  wallet,
+  levels,
+  onWithdraw: () => openCashOut(),
   pause3d: () => wheel.pause(),
   resume3d: () => !slots?.isOpen() && wheel.resume(),
   prefs: [
@@ -1405,6 +1413,120 @@ setWinFlair(({ level, origin }) => {
   const style = settings.look().winFx;
   if (style && style !== 'classic') flair.burst(style, origin, level);
 });
+
+// ---------- 👛 cash out: chips → wallet, up to a daily limit that grows with your level ----------
+let cashAmt = 100;
+function renderProgress() {
+  $('walletAmt').textContent = money(wallet.cash() - pendingCash);
+  const p = levels.progress();
+  const chip = $('lvlChip');
+  chip.querySelector('b').textContent = p.level;
+  chip.style.setProperty('--p', (p.into / p.need).toFixed(3));
+  chip.title = `Level ${p.level} · ${p.into} / ${p.need} XP to level ${p.level + 1}`;
+}
+
+// cashAmt is in wallet dollars; it costs cashAmt × RATE in chips
+const cashMax = () => Math.max(0, Math.min(wallet.left(), Math.floor(balance / RATE)));
+function renderCashOut() {
+  const max = cashMax();
+  cashAmt = Math.max(Math.min(1, max), Math.min(cashAmt, max));
+  const limit = wallet.limit();
+  const left = wallet.left();
+  $('wmCasino').textContent = money(balance - cashAmt * RATE);
+  $('wmWallet').textContent = money(wallet.cash() + cashAmt);
+  $('wmRate').innerHTML = `💱 <b>${money(RATE)}</b> in chips = <b>$1</b> in your wallet`;
+  $('wmLeft').textContent = `${money(left)} of ${money(limit)} left today`;
+  $('wmBar').style.width = `${((limit - left) / limit) * 100}%`;
+  const range = $('wmRange');
+  range.max = max;
+  range.value = cashAmt;
+  range.disabled = !max;
+  $('wmGo').disabled = !max;
+  $('wmGo').textContent = max ? `Swap ${money(cashAmt * RATE)} in chips for ${money(cashAmt)}` : 'Nothing to cash out';
+  const lvl = levels.level();
+  $('wmFoot').textContent =
+    !left ? `That's today's limit. It resets at midnight, and level ${lvl + 1} raises it to ${money(dailyLimit(lvl + 1))}.` :
+    balance < RATE ? `You need at least ${money(RATE)} in chips to get $1. Win some first (or, you know, the fake card).` :
+    `Resets at midnight. Level ${lvl + 1} raises it to ${money(dailyLimit(lvl + 1))} a day.`;
+}
+function openCashOut() {
+  renderCashOut();
+  $('walletModal').showModal();
+  sound.blip(880, 0.05, 'triangle', 0.08);
+}
+$('walletBtn').addEventListener('click', openCashOut);
+$('closeWallet').addEventListener('click', () => $('walletModal').close());
+$('walletModal').addEventListener('click', (e) => e.target === $('walletModal') && $('walletModal').close());
+$('wmRange').addEventListener('input', (e) => {
+  cashAmt = +e.target.value;
+  renderCashOut();
+});
+document.querySelectorAll('.wm-chips [data-amt]').forEach((b) =>
+  b.addEventListener('click', () => {
+    cashAmt = b.dataset.amt === 'max' ? cashMax() : +b.dataset.amt;
+    renderCashOut();
+    sound.blip(1200, 0.04, 'triangle', 0.07);
+  })
+);
+$('wmGo').addEventListener('click', () => {
+  const n = wallet.withdraw(Math.min(cashAmt, Math.floor(balance / RATE)));
+  if (!n) return;
+  balance -= n * RATE;
+  pendingCash += n;
+  render();
+  $('walletModal').close();
+  sound.cash();
+  const toEl = settings.walletEl() || $('walletBtn');
+  flair.cashOut({
+    fromEl: $('balance'),
+    toEl,
+    amount: n * RATE,
+    onDone: () => {
+      pendingCash -= n;
+      renderProgress();
+      settings.refresh();
+      sound.chip();
+      toEl.animate([{ scale: 1 }, { scale: 1.25 }, { scale: 1 }], { duration: 350, easing: 'ease-out' });
+    },
+  });
+  toast(`👛 ${money(n * RATE)} in chips swapped for ${money(n)} in your wallet. The store is open.`);
+});
+
+// every bet: a little +XP by your level
+function gainedXp(xp) {
+  renderProgress();
+  const r = $('lvlChip').getBoundingClientRect();
+  if (!r.width) return;
+  const f = document.createElement('div');
+  f.className = 'xp-float';
+  f.textContent = `+${xp} XP`;
+  f.style.left = `${r.left + r.width / 2}px`;
+  f.style.top = `${r.bottom + 2}px`;
+  document.body.appendChild(f);
+  f.animate(
+    [
+      { opacity: 0, transform: 'translate(-50%, 0)' },
+      { opacity: 1, transform: 'translate(-50%, 6px)', offset: 0.2 },
+      { opacity: 0, transform: 'translate(-50%, 26px)' },
+    ],
+    { duration: 1400, easing: 'ease-out' }
+  ).onfinish = () => f.remove();
+}
+
+// a new level: a medal, a fanfare, and whatever it unlocked
+function levelledUp(l) {
+  const unlocked = CATALOG.filter((c) => c.price > 0 && itemLevel(c) === l);
+  setTimeout(() => {
+    flair.levelUp(l);
+    [523, 659, 784, 1047].forEach((f, i) => sound.blip(f, 0.2, 'triangle', 0.12, i * 0.1));
+    const names = unlocked.slice(0, 3).map((c) => `${c.emoji} ${c.name}`).join(', ');
+    toast(
+      `⭐ Level ${l}! You can cash out ${money(dailyLimit(l))} a day now.` +
+        (unlocked.length ? ` Unlocked: ${names}${unlocked.length > 3 ? ` +${unlocked.length - 3} more` : ''}.` : '')
+    );
+    settings.refresh();
+  }, 1200);
+}
 
 // ---------- 📱 your phone (and Marco, who delivers food to roulette tables) ----------
 const courier = createCourier({ wheel, dave });
@@ -1448,6 +1570,7 @@ createVip({
     render();
   },
   onBroke: () => $('addFundsBtn').classList.add('pulse'),
+  onBuy: (price, bottle) => levels.drink(price, bottle),
 });
 
 // ---------- 🎰 SLOTS (DING DING DING) ----------
@@ -1461,6 +1584,7 @@ slots = createSlots({
     balance += delta;
     render();
   },
+  onBet: (outcome, stake, multiple) => levels.bet(outcome, stake, multiple),
   onOpen: () => {
     setAllIn(false);
     // only one 3D room renders at a time
