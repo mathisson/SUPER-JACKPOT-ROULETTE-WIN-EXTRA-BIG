@@ -158,6 +158,12 @@ function startParticles() {
   }
 }
 
+/** A standalone coin + confetti burst. */
+export function confetti(x = innerWidth / 2, y = innerHeight * 0.4, count = 120, power = 1.1) {
+  startParticles();
+  burst(x, y, count, power);
+}
+
 // ---------- win ----------
 export const TIERS = ['WIN', 'BIG WIN', 'MEGA WIN', 'JACKPOT!'];
 

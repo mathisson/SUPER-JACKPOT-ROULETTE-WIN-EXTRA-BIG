@@ -1,6 +1,10 @@
 import { RouletteWheel, colorOf, RED } from './wheel.js';
 import { celebrate, youDied, winLevel, fxActive, dismissFx } from './fx.js';
 import { LobbyMusic } from './music.js';
+import { startWaiter } from './drinks.js';
+import { bonusDue, offerBonus } from './bonus.js';
+import { createBar } from './booze.js';
+import { watchAd } from './ads.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 
@@ -43,9 +47,78 @@ const sound = {
   ctx: null,
   muted: store.get('fr.muted', false),
   ensure() {
-    if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (!this.ctx) {
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      this.buildDrunkBus();
+    }
     if (this.ctx.state === 'suspended') this.ctx.resume();
     return this.ctx;
+  },
+  /** Everything (effects + music) goes through here, so being drunk warps it all. */
+  bus() {
+    this.ensure();
+    return this.master;
+  },
+  // input → wobbling delay (pitch warble) → drive → muffle → out, plus a swimmy echo send
+  buildDrunkBus() {
+    const c = this.ctx;
+    const input = (this.master = c.createGain());
+    const warble = c.createDelay(0.1);
+    warble.delayTime.value = 0.02;
+    const lfoA = c.createOscillator();
+    const lfoB = c.createOscillator();
+    lfoA.frequency.value = 0.37;
+    lfoB.frequency.value = 0.93;
+    this.wobA = c.createGain();
+    this.wobB = c.createGain();
+    this.wobA.gain.value = this.wobB.gain.value = 0;
+    lfoA.connect(this.wobA).connect(warble.delayTime);
+    lfoB.connect(this.wobB).connect(warble.delayTime);
+    lfoA.start();
+    lfoB.start();
+
+    const drive = (this.drive = c.createWaveShaper());
+    drive.oversample = '2x';
+    const muffle = (this.muffle = c.createBiquadFilter());
+    muffle.type = 'lowpass';
+    muffle.frequency.value = 20000;
+    muffle.Q.value = 0.9;
+
+    const echo = c.createDelay(1);
+    echo.delayTime.value = 0.29;
+    const feedback = c.createGain();
+    feedback.gain.value = 0.42;
+    this.echoSend = c.createGain();
+    this.echoSend.gain.value = 0;
+
+    input.connect(warble).connect(drive).connect(muffle).connect(c.destination);
+    muffle.connect(this.echoSend).connect(echo).connect(feedback).connect(echo);
+    echo.connect(c.destination);
+    this.setDrunk(this.drunkLevel || 0);
+  },
+  setDrunk(level) {
+    this.drunkLevel = level;
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    //            sober   tipsy   buzzed  drunk   wasted
+    const wob =   [0,     0.0012, 0.003,  0.0055, 0.009][level];
+    const cut =   [20000, 9000,   4200,   2200,   1300][level];
+    const wet =   [0,     0.06,   0.14,   0.24,   0.36][level];
+    const crunch = [0,    0,      0,      8,      30][level];
+    this.wobA.gain.setTargetAtTime(wob, t, 0.4);
+    this.wobB.gain.setTargetAtTime(wob * 0.45, t, 0.4);
+    this.muffle.frequency.setTargetAtTime(cut, t, 0.4);
+    this.echoSend.gain.setTargetAtTime(wet, t, 0.4);
+    if (crunch) {
+      const curve = new Float32Array(1024);
+      for (let i = 0; i < curve.length; i++) {
+        const x = (i / (curve.length - 1)) * 2 - 1;
+        curve[i] = ((1 + crunch / 10) * x) / (1 + (crunch / 10) * Math.abs(x));
+      }
+      this.drive.curve = curve;
+    } else {
+      this.drive.curve = null;
+    }
   },
   blip(freq, dur, type = 'sine', vol = 0.2, delay = 0) {
     if (this.muted) return;
@@ -57,7 +130,7 @@ const sound = {
     o.frequency.setValueAtTime(freq, t);
     g.gain.setValueAtTime(vol, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(g).connect(c.destination);
+    o.connect(g).connect(this.bus());
     o.start(t);
     o.stop(t + dur);
   },
@@ -111,7 +184,7 @@ const sound = {
       lfo.connect(lfoDepth).connect(wob.gain);
       src.connect(bp).connect(whirr).connect(wob);
       src.connect(lp).connect(rumble).connect(wob);
-      wob.connect(c.destination);
+      wob.connect(this.bus());
       src.start();
       lfo.start();
       this.roll = { c, src, lfo, bp, whirr, rumble };
@@ -143,7 +216,7 @@ const sound = {
     const g = c.createGain();
     g.gain.setValueAtTime(0.5, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
-    src.connect(bp).connect(g).connect(c.destination);
+    src.connect(bp).connect(g).connect(this.bus());
     src.start(t, Math.random(), 0.1);
     this.blip(820, 0.06, 'sine', 0.2);
     this.blip(1250, 0.05, 'triangle', 0.1, 0.09);
@@ -158,7 +231,7 @@ const sound = {
     o.frequency.exponentialRampToValueAtTime(30, t + 1.2);
     g.gain.setValueAtTime(vol, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 1.6);
-    o.connect(g).connect(c.destination);
+    o.connect(g).connect(this.bus());
     o.start(t);
     o.stop(t + 1.6);
   },
@@ -180,12 +253,13 @@ const sound = {
       g.gain.setValueAtTime(0.0001, t);
       g.gain.exponentialRampToValueAtTime(vol, t + 0.9);
       g.gain.exponentialRampToValueAtTime(0.0001, t + 3.8);
-      o.connect(lp).connect(g).connect(c.destination);
+      o.connect(lp).connect(g).connect(this.bus());
       o.start(t);
       o.stop(t + 3.9);
     });
   },
   cash() { [880, 1320, 1760].forEach((f, i) => this.blip(f, 0.15, 'sine', 0.15, i * 0.07)); },
+  clink() { [2637, 3136, 2349].forEach((f, i) => this.blip(f, 0.22, 'sine', 0.05, i * 0.06)); },
   armed() {
     // two-tone alarm as the ALL IN button is armed
     for (let i = 0; i < 4; i++) this.blip(i % 2 ? 660 : 880, 0.14, 'square', 0.07, i * 0.15);
@@ -203,7 +277,7 @@ const sound = {
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(0.09, t + 0.4);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
-    o.connect(g).connect(c.destination);
+    o.connect(g).connect(this.bus());
     o.start(t);
     o.stop(t + 0.52);
     this.boom(0.8, 0.45);
@@ -318,9 +392,35 @@ const betTarget = (e) => e.target.closest('[data-key]');
 board.addEventListener('click', (e) => {
   const t = betTarget(e);
   if (!t) return;
-  if (allIn) goAllIn(t.dataset.key);
-  else placeBet(t.dataset.key);
+  let key = t.dataset.key;
+  // a drunk hand doesn't always land where it aimed
+  if (!spinning && Math.random() < booze.missChance()) {
+    const missed = drunkMiss(key);
+    if (missed !== key) {
+      key = missed;
+      toast(`*hic* ${BETS[key].label}… close enough 🥴`);
+    }
+  }
+  if (allIn) return goAllIn(key);
+  let amount = chipValue;
+  if (booze.level() >= 3 && Math.random() < 0.25) {
+    const up = CHIPS[CHIPS.indexOf(chipValue) + 1];
+    if (up && up <= balance) {
+      amount = up;
+      toast(`Big spender! You meant ${money(up)}, right? 🥴`);
+    }
+  }
+  placeBet(key, amount);
 });
+// Where a wobbly chip ends up: a neighbouring number, or some other even-money bet
+function drunkMiss(key) {
+  const b = BETS[key];
+  if (b.covers.length > 6) return pick(['red', 'black', 'odd', 'even', 'low', 'high'].filter((k) => k !== key));
+  const n = b.covers[0];
+  const near = n === 0 ? [1, 2, 3] : [n - 3, n + 3, n % 3 !== 0 ? n + 1 : n - 1, n % 3 !== 1 ? n - 1 : n + 1].filter((v) => v >= 1 && v <= 36);
+  return 'n' + pick(near);
+}
+const pick = (arr) => arr[(Math.random() * arr.length) | 0];
 board.addEventListener('contextmenu', (e) => {
   const t = betTarget(e);
   if (!t) return;
@@ -714,7 +814,7 @@ function settle(n) {
     spinning = false;
     render();
     if (balance < 1) {
-      toast('Out of chips! Top up with a fake card');
+      toast('Out of chips! Watch an ad for $100, or top up with a fake card 📺');
       $('addFundsBtn').classList.add('pulse');
     }
   }, 1800);
@@ -768,6 +868,8 @@ function render() {
   $('doubleBtn').disabled = spinning || !bets.size;
   board.classList.toggle('locked', spinning);
   $('allInBtn').disabled = !allIn && (spinning || balance < 1);
+  // only shown when you're completely broke: $0 and nothing on the felt
+  $('adBtn').hidden = !(balance === 0 && !bets.size && !spinning);
   renderRack();
 
   // Stakes still on the felt count as yours until the wheel is spun
@@ -796,7 +898,7 @@ $('muteBtn').addEventListener('click', () => {
 renderMute();
 
 // ---------- lobby music ----------
-const music = new LobbyMusic(() => sound.ensure());
+const music = new LobbyMusic(() => sound.ensure(), () => sound.bus());
 let musicOn = store.get('fr.music', true);
 function renderMusic() {
   const b = $('musicBtn');
@@ -830,7 +932,7 @@ const MAYBES = [
   ['🃏', 'Blackjack table in the corner, dealt by a suspiciously smug dealer', 'maybe'],
   ['🏆', 'Leaderboard of Shame, ranked by the biggest fake loss in one spin', 'someday'],
   ['🐔', 'Chicken mode: the ball is a tiny rubber chicken. Pays the same. Sounds worse.', 'please'],
-  ['🍸', 'Free drinks: a waiter walks past every 30 seconds and never stops at your table', 'in beta (no)'],
+  ['🍸', 'Free drinks: a waiter walks past every 30 seconds and never stops at your table', 'LIVE ✅'],
   ['🎲', 'Craps, purely so we can say "craps" in the game', 'lol'],
   ['🧓', 'Your grandma, who tells you to stop after 3 losses in a row', 'she insists'],
   ['🎟️', 'Loyalty card: earn points for every fake dollar lost, redeem for nothing', 'unlikely'],
@@ -838,7 +940,7 @@ const MAYBES = [
   ['🌙', 'Night mode, even though casinos famously have no clocks or windows', 'ironic'],
   ['🔁', 'Martingale button: doubles your bet after every loss until the heat death of the universe', 'dangerous'],
   ['🎤', 'Hype announcer who screams "HE\'S ON FIRE" after two wins in a row', 'if bored'],
-  ['🎁', 'Daily login bonus of $1, delivered via a 45-second unskippable animation', 'evil'],
+  ['🎁', 'Daily login bonus of $1, delivered via a 30-second unskippable animation', 'LIVE ✅'],
   ['🐋', 'Whale mode: 10× bigger chips and a velvet rope around the table', 'someday'],
   ['🛸', 'Alien abduction: a UFO beams your chips away (it\'s in the T&Cs)', 'classified'],
   ['🎮', 'Controller support, because roulette on a gamepad is how nature intended', 'maybe'],
@@ -859,7 +961,7 @@ $('rmHeadliners').innerHTML = HEADLINERS.map(
 ).join('');
 $('rmList').innerHTML = MAYBES.map(
   ([icon, text, tag], i) =>
-    `<li><span class="rm-li-icon">${icon}</span><span class="rm-li-text">${text}</span><span class="rm-tag">${tag}</span>${hypeBtn('m' + i)}</li>`
+    `<li><span class="rm-li-icon">${icon}</span><span class="rm-li-text">${text}</span><span class="rm-tag${tag.startsWith('LIVE') ? ' live' : ''}">${tag}</span>${hypeBtn('m' + i)}</li>`
 ).join('');
 
 document.querySelector('.roadmap').addEventListener('click', (e) => {
@@ -1070,5 +1172,65 @@ $('resetBalance').addEventListener('click', () => {
   render();
   modal.close();
 });
+
+// ---------- 🍸 free drinks (not for you) ----------
+const booze = createBar({
+  stage: document.querySelector('.stage'),
+  store,
+  sound,
+  toast,
+  getBalance: () => balance,
+  spend: (v) => {
+    balance -= v;
+    render();
+  },
+});
+startWaiter({
+  stage: document.querySelector('.stage'),
+  canWalk: () => !fxActive() && !document.body.classList.contains('bonus-active'),
+  onClink: () => sound.clink(),
+  pickDrink: booze.pickDrink,
+  getTarget: booze.target,
+  onDrink: booze.add,
+  onBusy: booze.blackedOut,
+});
+
+// ---------- 📺 watch an ad for $100 (broke players only) ----------
+const canWatchAd = () => balance === 0 && !bets.size && !spinning;
+$('adBtn').addEventListener('click', () => {
+  if (!canWatchAd()) return toast('Ads are only for the truly broke. Come back at $0.');
+  setAllIn(false);
+  watchAd({
+    sound,
+    music,
+    onReward: (from, amount) => {
+      balance += amount;
+      pieces(amount, 8).forEach((p, i) =>
+        fly(from, rackPoint(p.denom), p.denom, { delay: i * 80, onLand: () => { addBank(p.value); sound.chip(); } })
+      );
+      render();
+      toast(`+${money(amount)} from our totally real sponsors 📺`);
+    },
+  });
+});
+
+// ---------- 🎁 daily login bonus ($1, 30 unskippable seconds) ----------
+if (bonusDue(store)) {
+  setTimeout(
+    () =>
+      offerBonus({
+        store,
+        sound,
+        music,
+        onReward: (from) => {
+          balance += 1;
+          fly(from, rackPoint(1), 1, { onLand: () => { addBank(1); sound.cash(); } });
+          render();
+          toast('+$1 daily bonus. Living large. 💸');
+        },
+      }),
+    1500
+  );
+}
 
 render();

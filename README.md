@@ -81,6 +81,31 @@ Complete with a mournful drone. You'll be back. They always come back.
 ### 🎺 Vegas lobby music
 An original big-band swing tune with a muted trumpet, brass hits, walking bass and slot-machine sparkles, all synthesised live in your browser. No audio files, no copyright lawyers. Toggle it with 🎵; sound effects live on 🔊.
 
+### 🍸 FREE DRINKS
+Every 30 seconds a fabulously mustached waiter strolls past your table with a tray of martinis and tiki drinks. He **never stops at your table**. Some laps he sprints, moonwalks, tiptoes or shows up on roller skates. Sometimes he stops right in front of you, asks *"Can I get you anything?"*… then says *"just kidding"* and leaves. He'll never *serve* you, but you can **click him to snatch a drink off his tray** (*"Hey! That was for table 7!"*), and sometimes he just lobs one at you.
+
+Your drinks pile up in a wobbly **drink stack** with a **Tipsy-meter™**: Sober 😐 → Tipsy 🙂 → Buzzed 😵‍💫 → Drunk 🥴 → Wasted 🤪 → LEGENDARY 🦄. And yes, it affects your game:
+
+| Level | What happens |
+|---|---|
+| 🙂 Tipsy | The room starts to sway |
+| 😵‍💫 Buzzed | Blurry wheel, and 1 in 5 chips land on the number next door (*"\*hic\* close enough"*) |
+| 🥴 Drunk | Double vision, more misses, and sometimes you grab a bigger chip than you meant to |
+| 🤪 Wasted | The whole casino tilts and changes colour. Half your chips go wherever they want. |
+| 💤 10 drinks | You black out and wake up in the parking lot. The cab home costs $20. |
+
+Your ears get drunk too: the more you drink, the more the music and every sound effect **warble, go muffled, echo and eventually distort**, like listening from the bottom of a glass.
+
+You sober up slowly on your own. Or buy a 💧 **water for $5**. Drinks are free. Water is not. Welcome to Vegas.
+
+### 📺 WATCH AN AD, GET $100
+Completely broke? At exactly **$0** with nothing on the table, a **Watch ad: +$100** button appears. Enjoy a message from our totally real sponsors: Hot Singles (they're dice), Waiter Academy™, Grandma's Cookies, Download More Money.biz and friends. It's "Ad 1 of 1"… until it becomes **Ad 2 of 1**. The skip button counts down, then refuses. After 15 seconds, claim your $100.
+
+### 🎁 DAILY LOGIN BONUS
+Once a day you're offered a **life-changing reward**, delivered via a **30-second, fully unskippable** ceremony. There's a progress bar with trust issues, a rigorous eligibility check, a vigorously shaken gift box, an ad for this exact game, and a money counter that counts *down*. It ends with the grand reveal: **$1**.
+
+The Skip button runs away from your mouse and its countdown keeps starting over. Escape and Space just get you *"Nice try 😏"*. Declining also takes 30 seconds. Want to watch it again today? Add `?bonus` to the URL.
+
 ### 💳 The Fake Bank of Fake Money
 Out of chips? Hit **+ Add funds** and "deposit" with a fake card. There's a live card preview, validation and a very convincing "Pretending to contact the bank…" spinner.
 
@@ -108,7 +133,7 @@ On narrow screens the table flips vertical: 0 on top, numbers running down the s
 - 🃏 **Blackjack table** in the corner, dealt by a suspiciously smug dealer
 - 🏆 **Leaderboard of Shame**, ranked by the biggest fake money lost in a single spin
 - 🐔 **Chicken mode**, where the ball is replaced with a tiny rubber chicken. Pays the same. Sounds worse.
-- 🍸 **Free drinks**, a waiter who walks past every 30 seconds and never stops at your table
+- ~~🍸 **Free drinks**, a waiter who walks past every 30 seconds and never stops at your table~~ ✅ **SHIPPED**
 - 🎲 **Craps**, purely so we can put the word "craps" in a README
 - 🧓 **Your grandma**, who shows up and tells you to stop after 3 losses in a row
 - 🎟️ **Loyalty card**, earn points for every fake dollar lost and redeem them for absolutely nothing
@@ -116,7 +141,7 @@ On narrow screens the table flips vertical: 0 on top, numbers running down the s
 - 🌙 **Night mode**, even though casinos famously have no clocks or windows
 - 🔁 **Martingale button**, which doubles your bet after every loss until the heat death of the universe
 - 🎤 **Hype announcer** who screams "HE'S ON FIRE" after two wins in a row
-- 🎁 **Daily login bonus** of $1, delivered via a 45-second unskippable animation
+- ~~🎁 **Daily login bonus** of $1, delivered via a 30-second unskippable animation~~ ✅ **SHIPPED**
 - 🐋 **Whale mode**: the chips are 10× bigger and the table gets a velvet rope
 - 🛸 **Alien abduction**: a UFO beams your chips away. It's in the terms and conditions.
 - 🎮 **Controller support**, because roulette on a gamepad is how nature intended
@@ -157,6 +182,8 @@ It's a static site. [vercel.json](vercel.json) tells Vercel to serve the folder 
 | **☢️ ALL IN**, then tap a spot | Bet everything. EVERYTHING. |
 | `Space` | SPIN (or skip a win/death screen) |
 | `Esc` | Disarm ALL IN / skip a screen |
+| **Click the waiter** | Snatch a free drink 🍸 |
+| **💧 Water $5** | Sober up a little (overpriced, as is tradition) |
 | **Drag / scroll** on the wheel | Orbit / zoom the camera |
 
 ---
@@ -170,6 +197,10 @@ js/main.js            the game: bets, chips, rack, ALL IN, sounds, fake bank
 js/wheel.js           the 3D wheel, ball physics-ish and camera
 js/scenery.js         the casino: table, carpet, slot machines, lights, haze
 js/fx.js              WIN / MEGA WIN / JACKPOT! celebrations and YOU DIED
+js/drinks.js          the free-drinks waiter (never stops at your table)
+js/booze.js           the drink stack, the Tipsy-meter and the consequences
+js/ads.js             the totally real sponsors ($100 for the broke)
+js/bonus.js           the 30-second unskippable $1 daily login bonus
 js/music.js           the procedural Vegas big-band loop
 scripts/dev-server.js tiny zero-dependency local server (not deployed)
 ```

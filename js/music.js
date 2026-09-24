@@ -42,8 +42,9 @@ const STABS = [[3, 1], [6, 1]];
 const STABS_TURN = [[0, 2], [3, 1], [5, 1], [7, 1]];
 
 export class LobbyMusic {
-  constructor(getCtx) {
+  constructor(getCtx, getDest) {
     this.getCtx = getCtx;
+    this.getDest = getDest; // where the music plays into (the drunk bus)
     this.playing = false;
     this.bar = 0;
     this.level = 0.45;
@@ -58,7 +59,7 @@ export class LobbyMusic {
     const comp = c.createDynamicsCompressor();
     comp.threshold.value = -16;
     comp.ratio.value = 3;
-    this.out.connect(comp).connect(c.destination);
+    this.out.connect(comp).connect(this.getDest ? this.getDest() : c.destination);
 
     // Generated "showroom" reverb
     const len = c.sampleRate * 1.8;
