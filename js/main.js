@@ -5,6 +5,7 @@ import { startWaiter } from './drinks.js';
 import { bonusDue, offerBonus } from './bonus.js';
 import { createBar } from './booze.js';
 import { watchAd } from './ads.js';
+import { createSlots } from './slots.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 
@@ -36,6 +37,7 @@ let actions = [];          // undo stack: { key, amount }
 let lastBets = null;
 let chipValue = 25;
 let spinning = false;
+let slots = null;          // the slot machine room, created further down
 
 const $ = (id) => document.getElementById(id);
 const money = (n) =>
@@ -725,6 +727,14 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault();
     return dismissFx();
   }
+  if (slots?.isOpen()) {
+    // in the slots room: Space pulls the lever, Escape walks back to roulette
+    if (e.code === 'Space' && !$('fundsModal').open && !$('roadmapModal').open) {
+      e.preventDefault();
+      slots.spin(true);
+    } else if (e.code === 'Escape') slots.hide();
+    return;
+  }
   if (e.code === 'Space' && !$('fundsModal').open && !$('roadmapModal').open && document.activeElement.tagName !== 'INPUT') {
     e.preventDefault();
     spin();
@@ -870,6 +880,7 @@ function render() {
   $('allInBtn').disabled = !allIn && (spinning || balance < 1);
   // only shown when you're completely broke: $0 and nothing on the felt
   $('adBtn').hidden = !(balance === 0 && !bets.size && !spinning);
+  slots?.refresh();
   renderRack();
 
   // Stakes still on the felt count as yours until the wheel is spun
@@ -925,7 +936,7 @@ addEventListener('keydown', kickoff);
 // Keep in sync with the "COMING SOON™" section of README.md
 const HEADLINERS = [
   { id: 'multiplayer', icon: '👯', title: 'MULTIPLAYER', desc: 'Lose fake money together, in real time, with your friends.', tag: 'perchance', pct: 35 },
-  { id: 'slots', icon: '🎰', title: 'SLOTS', desc: 'Those machines in the background are getting jealous.', tag: 'most likely', pct: 80 },
+  { id: 'slots', icon: '🎰', title: 'SLOTS', desc: 'SHIPPED! 🐉 DRAGON RUSH WIN BIG is live: 7×7 tumbles, ×1024 multiplier spots. Hit the SLOTS ➜ arrow. DING DING DING.', tag: 'LIVE ✅', pct: 100 },
   { id: 'funny', icon: '🤡', title: 'OTHER FUNNY STUFF', desc: "You'll know it when you see it.", tag: 'guaranteed', pct: 100 },
 ];
 const MAYBES = [
@@ -1187,12 +1198,36 @@ const booze = createBar({
 });
 startWaiter({
   stage: document.querySelector('.stage'),
-  canWalk: () => !fxActive() && !document.body.classList.contains('bonus-active'),
+  canWalk: () => !fxActive() && !document.body.classList.contains('bonus-active') && !slots?.isOpen(),
   onClink: () => sound.clink(),
   pickDrink: booze.pickDrink,
   getTarget: booze.target,
   onDrink: booze.add,
   onBusy: booze.blackedOut,
+});
+
+// ---------- 🎰 SLOTS (DING DING DING) ----------
+slots = createSlots({
+  host: document.querySelector('main'),
+  sound,
+  music,
+  toast,
+  getBalance: () => balance,
+  adjust: (delta) => {
+    balance += delta;
+    render();
+  },
+  onOpen: () => {
+    setAllIn(false);
+    // only one 3D room renders at a time
+    setTimeout(() => slots.isOpen() && wheel.pause(), 1700);
+  },
+  onClose: () => wheel.resume(),
+});
+$('toSlotsBtn').addEventListener('click', () => {
+  if (spinning) return toast('Hold on, the ball is still rolling! 🎡');
+  scrollTo({ top: 0, behavior: 'smooth' });
+  slots.show();
 });
 
 // ---------- 📺 watch an ad for $100 (broke players only) ----------

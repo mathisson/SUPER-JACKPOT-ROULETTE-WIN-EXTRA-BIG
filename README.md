@@ -81,6 +81,18 @@ Complete with a mournful drone. You'll be back. They always come back.
 ### 🎺 Vegas lobby music
 An original big-band swing tune with a muted trumpet, brass hits, walking bass and slot-machine sparkles, all synthesised live in your browser. No audio files, no copyright lawyers. Toggle it with 🎵; sound effects live on 🔊.
 
+### 🐉 DRAGON RUSH WIN BIG (DING DING DING)
+Hit the glowing **SLOTS ➜** arrow and *walk* (footsteps and all) into the slots room. The band switches to **Dragon Disco** and a **3D pagoda gate** full of chunky 3D gems appears in front of a sunset sky, with mountains, rising sky lanterns and a serpent dragon looping through the clouds.
+
+- **7×7 CLUSTER PAYS.** 5+ matching symbols touching up, down, left or right pay. No lines, no reels, just vibes.
+- **TUMBLES.** Winners explode into sparks, everything falls, new gems drop in. Chain them: *BOOM! TUMBLE ×3*, *YOU ARE ON A ROLL!*, *WHAT IS HAPPENING*.
+- **MULTIPLIER SPOTS.** Every explosion marks its spot; the next one makes it **×2**, then it doubles every hit, all the way to **×1024**. A cluster over lit spots is multiplied by the sum of them. Hit ×1024 and the dragon briefly announces **×100000000000000000000000000000000000000** before the Dragon Tax Office steps in.
+- **🔥 FLAMING PEARLS.** 3 / 4 / 5 / 6 / 7 scatters give 10 / 12 / 15 / 20 / 30 **FREE SPINS**, and in free spins **the multiplier spots stick** for the whole bonus. The sky turns gold and the dragon gets excited.
+- **BUY FREE SPINS** for 105× your bet if you're impatient. Plus **AUTO** (10 spins) and **⚡ TURBO**.
+- Simulated over 400,000 spins at a ~96% return, so it's generous but still a casino.
+
+`Space` spins, `Esc` walks you back to roulette.
+
 ### 🍸 FREE DRINKS
 Every 30 seconds a fabulously mustached waiter strolls past your table with a tray of martinis and tiki drinks. He **never stops at your table**. Some laps he sprints, moonwalks, tiptoes or shows up on roller skates. Sometimes he stops right in front of you, asks *"Can I get you anything?"*… then says *"just kidding"* and leaves. He'll never *serve* you, but you can **click him to snatch a drink off his tray** (*"Hey! That was for table 7!"*), and sometimes he just lobs one at you.
 
@@ -125,7 +137,7 @@ On narrow screens the table flips vertical: 0 on top, numbers running down the s
 | # | Feature | Likelihood |
 |---|---|---|
 | 1 | 👯 **MULTIPLAYER** — lose fake money *together*, in real time, with your friends | 🎲 *perchance* |
-| 2 | 🎰 **SLOTS** — those machines in the background are getting jealous | ✅ *most likely* |
+| 2 | ~~🎰 **SLOTS**~~ — **SHIPPED:** 🐉 DRAGON RUSH WIN BIG is live. Hit the SLOTS ➜ arrow. | ✅ *done, DING DING* |
 | 3 | 🤡 **OTHER FUNNY STUFF** — you'll know it when you see it | 💯 *guaranteed* |
 
 ### 🧪 Also maybe, possibly, who knows
@@ -200,6 +212,9 @@ js/fx.js              WIN / MEGA WIN / JACKPOT! celebrations and YOU DIED
 js/drinks.js          the free-drinks waiter (never stops at your table)
 js/booze.js           the drink stack, the Tipsy-meter and the consequences
 js/ads.js             the totally real sponsors ($100 for the broke)
+js/slots.js           DRAGON RUSH WIN BIG: tumbles, free spins, buy bonus, autoplay
+js/rush-math.js       the slot maths: clusters, tumbles, ×1024 multiplier spots
+js/slots3d.js         the 3D slot: gems, pagoda gate, sky, the serpent dragon
 js/bonus.js           the 30-second unskippable $1 daily login bonus
 js/music.js           the procedural Vegas big-band loop
 scripts/dev-server.js tiny zero-dependency local server (not deployed)

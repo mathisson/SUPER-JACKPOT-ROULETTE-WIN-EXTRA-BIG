@@ -311,6 +311,15 @@ export class RouletteWheel {
     this.camera.updateProjectionMatrix();
   }
 
+  /** Stop rendering (e.g. while you are over at the slots). */
+  pause() {
+    this.renderer.setAnimationLoop(null);
+  }
+  resume() {
+    this.clock.getDelta();
+    this.renderer.setAnimationLoop(() => this.frame());
+  }
+
   /** Gold light pulse + a little extra wheel spin to celebrate a win. */
   flash(level = 0) {
     this.glow.intensity = 40 + level * 45;

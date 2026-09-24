@@ -41,6 +41,24 @@ const FORM = [...A, ...A2, ...B, ...A2];
 const STABS = [[3, 1], [6, 1]];
 const STABS_TURN = [[0, 2], [3, 1], [5, 1], [7, 1]];
 
+// ---------- "Dragon Disco": the slots-hall track ----------
+// 126 BPM straight 16ths, A minor pentatonic, gongs on the downbeat of each phrase.
+const D_BEAT = 60 / 126;
+const D_CHORDS = [
+  { root: 45, voicing: [57, 60, 64] }, // Am
+  { root: 41, voicing: [57, 60, 65] }, // F
+  { root: 43, voicing: [55, 59, 62] }, // G
+  { root: 40, voicing: [56, 59, 64] }, // E
+];
+const D_PROG = [0, 1, 2, 0, 0, 1, 3, 3];
+// pentatonic hook: [sixteenth 0–15, midi, length in 16ths]
+const D_HOOK = [
+  [[0, 76, 2], [2, 79, 2], [4, 81, 4], [8, 79, 2], [10, 76, 2], [12, 74, 4]],
+  [[0, 72, 2], [2, 74, 2], [4, 76, 6], [12, 69, 4]],
+  [[0, 74, 2], [2, 76, 2], [4, 79, 2], [6, 81, 2], [8, 84, 6], [14, 81, 2]],
+  [[0, 79, 4], [4, 76, 4], [8, 74, 2], [10, 72, 2], [12, 69, 4]],
+];
+
 export class LobbyMusic {
   constructor(getCtx, getDest) {
     this.getCtx = getCtx;
@@ -48,6 +66,30 @@ export class LobbyMusic {
     this.playing = false;
     this.bar = 0;
     this.level = 0.45;
+    this.song = 'lobby'; // 'lobby' (Vegas big band) or 'slots' (Dragon Disco)
+  }
+
+  /** Crossfade to another song: the band stops, the new track starts on the next bar. */
+  setSong(name) {
+    if (name === this.song) return;
+    if (!this.playing) {
+      this.song = name;
+      return;
+    }
+    const now = this.ctx.currentTime;
+    const g = this.out.gain;
+    g.cancelScheduledValues(now);
+    g.setValueAtTime(g.value, now);
+    g.linearRampToValueAtTime(0, now + 0.6);
+    setTimeout(() => {
+      this.song = name;
+      this.bar = 0;
+      this.nextBar = this.ctx.currentTime + 0.15;
+      const t = this.ctx.currentTime;
+      g.cancelScheduledValues(t);
+      g.setValueAtTime(0, t);
+      g.linearRampToValueAtTime(this.level, t + 1.2);
+    }, 700);
   }
 
   setup() {
@@ -121,8 +163,13 @@ export class LobbyMusic {
 
   schedule() {
     while (this.nextBar < this.ctx.currentTime + 1.2) {
-      this.playBar(this.nextBar);
-      this.nextBar += BEAT * 4;
+      if (this.song === 'slots') {
+        this.playSlotsBar(this.nextBar);
+        this.nextBar += D_BEAT * 4;
+      } else {
+        this.playBar(this.nextBar);
+        this.nextBar += BEAT * 4;
+      }
       this.bar++;
     }
   }
@@ -161,6 +208,46 @@ export class LobbyMusic {
     // Slot-machine sparkle at the top of each chorus and the bridge
     if (i === 0 || i === 8) {
       [84, 88, 91, 96, 100, 103].forEach((m, k) => this.bell(mtof(m), t0 + k * 0.045));
+    }
+  }
+
+  playSlotsBar(t0) {
+    const i = this.bar % 16;
+    const ch = D_CHORDS[D_PROG[i % 8]];
+    const s16 = (n) => t0 + n * (D_BEAT / 4);
+    const L16 = D_BEAT / 4;
+
+    // four-on-the-floor, claps on 2 & 4, offbeat open hats, busy closed hats
+    for (let b = 0; b < 4; b++) {
+      this.kick(t0 + b * D_BEAT, 0.42);
+      this.noiseHit(s16(b * 4 + 2), 0.07, 0.11, 'highpass', 7000);
+    }
+    this.noiseHit(s16(4), 0.14, 0.16, 'bandpass', 1600, 0.9);
+    this.noiseHit(s16(12), 0.14, 0.16, 'bandpass', 1600, 0.9);
+    for (let n = 0; n < 16; n++) if (n % 2) this.noiseHit(s16(n), 0.025, 0.03, 'highpass', 9000);
+
+    // octave-pumping disco bass
+    for (let n = 0; n < 8; n++) {
+      const m = ch.root + (n % 2 ? 12 : 0);
+      this.voice('sawtooth', mtof(m), s16(n * 2), L16 * 1.6, 0.09, { attack: 0.005, cutoff: 900, verb: false });
+    }
+    // sparkly 16th arpeggio two octaves up
+    const arp = [0, 1, 2, 1];
+    for (let n = 0; n < 16; n++) {
+      this.voice('square', mtof(ch.voicing[arp[n % 4]] + 12), s16(n), L16 * 0.9, 0.018, { attack: 0.003, cutoff: 2600 });
+    }
+    // chord stab on the one
+    ch.voicing.forEach((m) => this.voice('sawtooth', mtof(m), t0, D_BEAT * 1.5, 0.02, { attack: 0.01, cutoff: 1400 }));
+
+    // the dragon hook in the second half of each 16 bars
+    if (i >= 8) {
+      D_HOOK[i % 4].forEach(([n, m, l]) => this.trumpet(mtof(m), s16(n), l * L16));
+    }
+    // gong + bells at the top of each phrase
+    if (i % 8 === 0) {
+      this.kick(t0, 0.6);
+      [110, 164, 247].forEach((f) => this.voice('sine', f, t0, 2.6, 0.05, { attack: 0.01, cutoff: 3000 }));
+      [88, 91, 93, 96, 100].forEach((m, k) => this.bell(mtof(m), t0 + 0.02 + k * 0.05));
     }
   }
 

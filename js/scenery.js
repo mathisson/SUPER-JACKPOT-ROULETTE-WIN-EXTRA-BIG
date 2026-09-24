@@ -285,12 +285,14 @@ function slotTopperTexture(label, hue, renderer) {
 }
 
 // ---------- build ----------
-export function buildScenery(scene, renderer) {
+/** @param opts.table false for the slots hall: same casino, no roulette table */
+export function buildScenery(scene, renderer, opts = {}) {
   const animated = { bokeh: [], toppers: [], motes: null, beam: null };
 
   scene.background = new THREE.Color(0x0c0410);
   scene.fog = new THREE.Fog(0x0c0410, 16, 52);
 
+  if (opts.table !== false) {
   // --- table top (felt) ---
   const feltGeo = new THREE.ShapeGeometry(roundedRect(TABLE_W, TABLE_D, 3), 24);
   const pos = feltGeo.attributes.position;
@@ -383,6 +385,8 @@ export function buildScenery(scene, renderer) {
     chip.rotation.y = rand(0, 6);
     chip.castShadow = true;
     scene.add(chip);
+  }
+
   }
 
   // --- carpet ---
