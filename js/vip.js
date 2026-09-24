@@ -255,7 +255,9 @@ function dudeSvg() {
  * @param tab     the bar tab: bar drinks go on it instead of being paid for
  * @param onDave  () => void, Dave crashed the party (he'll remember you)
  */
-export function createVip({ button, sound, music, musicOn, toast, booze, getBalance, spend, onBroke, tab, onDave }) {
+/** @param onBuy(price, bottle)  you ordered something (XP) */
+export function createVip({ button, sound, music, musicOn, toast, booze, getBalance, spend, onBroke, tab, onDave, onBuy }) {
+  const BOTTLES = new Set(MENU.find((m) => m.title.includes('Bottle')).items.map((i) => i.id));
   // A paper menu: slides up closed, the leather cover swings open onto two parchment pages.
   // The cover's inside face *is* the left page (the bar), the right page is bottle service.
   const itemHtml = (it, n) => `<button type="button" class="vip-item${it.gold ? ' gold' : ''}" data-id="${it.id}" style="--n:${n}">
@@ -492,6 +494,7 @@ export function createVip({ button, sound, music, musicOn, toast, booze, getBala
     const cost = it.price + extra();
     order = null;
     spend(cost);
+    onBuy?.(cost, true);
     close(true);
     sound.cash();
     startParty(it, song, it.gold ? outfit : 'sequin');
@@ -501,6 +504,7 @@ export function createVip({ button, sound, music, musicOn, toast, booze, getBala
   function serve(it) {
     if (tab) tab.add(it);
     else spend(it.price);
+    onBuy?.(it.price, BOTTLES.has(it.id));
     sound.clink();
     close(true);
     const r = button.getBoundingClientRect();

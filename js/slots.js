@@ -23,7 +23,8 @@ const save = (k, v) => {
   } catch {}
 };
 
-export function createSlots({ host, sound, music, getBalance, adjust, toast, onOpen, onClose }) {
+/** @param onBet(outcome, stake, multiple)  a paid bet: 'win' | 'loss' | 'push', or 'placed' for a bonus buy */
+export function createSlots({ host, sound, music, getBalance, adjust, toast, onOpen, onClose, onBet }) {
   const view = document.createElement('section');
   view.className = 'slots-view';
   view.setAttribute('aria-label', 'Dragon Rush Win Big slot machine');
@@ -252,6 +253,7 @@ export function createSlots({ host, sound, music, getBalance, adjust, toast, onO
       }
       buyMenu.hidden = true;
       adjust(-cost);
+      onBet?.('placed', cost);
       sound.cash?.();
       freeBet = bet;
       awardFree(opt.spins, opt.start ? '💎 SUPER BONUS BOUGHT 💎' : '💸 BONUS BOUGHT 💸', false, opt.start).then(
@@ -574,6 +576,7 @@ export function createSlots({ host, sound, music, getBalance, adjust, toast, onO
 
     const win = Math.round(res.total);
     if (win) adjust(win);
+    if (!isFree) onBet?.(win > bet ? 'win' : win < bet ? 'loss' : 'push', bet, win / bet);
     if (isFree) freeWin += win;
     setWin(win);
     const x = win / bet;

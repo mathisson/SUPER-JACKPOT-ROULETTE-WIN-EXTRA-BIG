@@ -169,8 +169,13 @@ Tap **📱** in the top bar (or press `P`) and a **3D phone** rises into your ha
 The round portrait in the **top-right corner** is you. Click it for Settings, with your 3D character on a spotlit turntable (drag to spin):
 
 - **👤 Character**: skin, hair, hair colour, facial hair, expression and T-shirt colour, plus everything you own.
-- **🛍️ Store**: spend your winnings on hats (party hat, traffic cone, cowboy, top hat, Dave's tie, a $5,000 crown…), glasses, necklaces and outfits up to a $25,000 solid gold suit. Try anything on for free before you buy.
+- **🛍️ Store**: hats (party hat, traffic cone, cowboy, top hat, Dave's tie, a $5,000 crown…), glasses, necklaces and outfits up to a $25,000 solid gold suit, plus phone cases, wallpapers, ringtones, win styles and selfie emotes. Try anything on for free before you buy. The store only takes **wallet** money, and the fancier items need a **level**.
 - **⚙️ Settings**: sound, music, Dave's text banners, and **reduce motion** (no screen shake, drunk swaying or head-bob).
+
+### 👛 THE WALLET & ⭐ LEVELS
+Fake cards buy chips, not crowns. The store only takes money from your **👛 wallet** (top bar), and you fill it by **cashing out** casino chips at **$10 in chips = $1 in the wallet**, up to a **daily limit** of wallet money ($300 at level 1, +$100 per level, resets at midnight). Watch the bills fly into a 3D leather wallet.
+
+Every bet you make (one spin, on roulette or the slots) earns **XP**. Bigger bets earn more: 10 XP, +10 for every ×10 of stake ($1 → 10, $10 → 20, $100 → 30, $1,000+ → 40). Then the result: a win +10, or +20 when you get 5× your stake back and +30 at 20× (hello, straight-up number); a push +5, a loss +3. **Never more than 60 XP per spin.** Buying drinks earns XP too: 5, +5 for every ×10 of price (a lager 5, the whiskey 15), and **double for bottle service** (Pete's 30, Moët 40, Dom 50). The ring around your level in the top bar fills up; a new level gets you a spinning 3D gold medal, a bigger daily cash-out limit, and new store items to buy.
 
 ### 📺 WATCH AN AD, GET $100
 Completely broke? At exactly **$0** with nothing on the table, a **Watch ad: +$100** button appears. Enjoy a message from our totally real sponsors: Hot Singles (they're dice), Waiter Academy™, Grandma's Cookies, Download More Money.biz and friends. It's "Ad 1 of 1"… until it becomes **Ad 2 of 1**. The skip button counts down, then refuses. After 15 seconds, claim your $100.
@@ -295,6 +300,9 @@ js/phone3d.js         the 3D handset (CSS3D screen) and the selfie camera scene
 js/courier.js         Marco the food courier, walking across your table in 3D
 js/avatar.js          your 3D character, the store catalogue, the turntable
 js/settings.js        the top-right Settings page: character, store, settings
+js/wallet.js          the wallet the store takes, and its daily cash-out limit
+js/levels.js          XP per bet, levels, and the level each store item needs
+js/flair3d.js         the 3D overlay: win styles, the cash-out wallet, level-up medal
 js/ads.js             the totally real sponsors ($100 for the broke)
 js/slots.js           DRAGON RUSH WIN BIG: tumbles, free spins, buy bonus, autoplay
 js/rush-math.js       the slot maths: clusters, tumbles, ×1024 multiplier spots
