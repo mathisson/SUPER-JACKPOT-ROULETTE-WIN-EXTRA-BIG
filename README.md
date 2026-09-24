@@ -129,6 +129,22 @@ The gold bottle lets you **dress the crew**: 🪩 Sequin Classic (included), �
 
 Before they walk in, a **DJ request slip** gets clipped to the menu: pick a club classic or **paste any YouTube link** (timestamps work). The lights drop, the disco ball spins, the girls parade in and **dance to your song** until it ends: one 8-beat routine, bottles pumping on every beat, everybody twirling on the 8. Every preset knows its tempo, the lobby band keeps its own time, and for anything else you can hit **🥁 Tap the beat** (or press `T`) to lock them to the music. Sometimes **Dave** shows up: tie round his head, beer in hand, dancing to a completely different song. The drunker you are, the more likely he is to come. Click him and he falls over. Hit **🙈 Back to the table** to keep the music going while you play, or **🛑 End party**, and the lead girl hands you the bottle on her way out.
 
+### 🧾 THE BAR TAB (AND THE SINK)
+Bar drinks from the menu don't cost money up front. They go **on your tab**, pinned to your drink stack as a little receipt. Once the tab hits $100 the waiter comes back, and a 3D receipt printer on the bar spits out a very long bill:
+
+```
+Sparkler fuel (25%)          (even if you had no sparklers)
+Glass rental                 $2 a glass
+Ice, hand-carved             $4
+Waiter emotional damage      $7
+Card machine warm-up         $3
+Tip (mandatory, 22%)
+```
+
+A rubber stamp slams **UNPAID** onto the total. Pay it, or say *"Wash dishes instead"* and get sent to the kitchen: a 3D stainless-steel sink full of suds, a dripping tap, a flickering tube light and a stack of filthy plates. **Hold and drag to scrub.** The dirt really comes off where the sponge goes, and anything gross stuck to a plate (a whole shrimp 🦐, chewed gum, one fry, a martini olive, a casino chip?!) gets flicked out of the sink. Clean plates fly into the drying rack while the chef yells at you. The drunker you are, the more the sponge wanders.
+
+You get 30 seconds, $20 a plate and $5 per gross thing. Wash off the whole tab and the chef might slip you a tip. Fall short and the manager writes off the rest, but you're **banned from the bar for 90 seconds**.
+
 ### 📺 WATCH AN AD, GET $100
 Completely broke? At exactly **$0** with nothing on the table, a **Watch ad: +$100** button appears. Enjoy a message from our totally real sponsors: Hot Singles (they're dice), Waiter Academy™, Grandma's Cookies, Download More Money.biz and friends. It's "Ad 1 of 1"… until it becomes **Ad 2 of 1**. The skip button counts down, then refuses. After 15 seconds, claim your $100.
 
@@ -166,6 +182,7 @@ On narrow screens the table flips vertical: 0 on top, numbers running down the s
 - 🐔 **Chicken mode**, where the ball is replaced with a tiny rubber chicken. Pays the same. Sounds worse.
 - ~~🍸 **Free drinks**, a waiter who walks past every 30 seconds and never stops at your table~~ ✅ **SHIPPED**
 - ~~🍾 **VIP bottle service**, with bottle girls, sparklers and your own song from YouTube~~ ✅ **SHIPPED**
+- ~~🧽 **A bar tab** you can pay off by washing dishes~~ ✅ **SHIPPED**
 - 🎲 **Craps**, purely so we can put the word "craps" in a README
 - 🧓 **Your grandma**, who shows up and tells you to stop after 3 losses in a row
 - 🎟️ **Loyalty card**, earn points for every fake dollar lost and redeem them for absolutely nothing
@@ -234,6 +251,8 @@ js/fx.js              WIN / MEGA WIN / JACKPOT! celebrations and YOU DIED
 js/drinks.js          the free-drinks waiter (never stops at your table)
 js/booze.js           the drink stack, the Tipsy-meter and the consequences
 js/vip.js             the paper drinks menu, bottle girls and the YouTube DJ booth
+js/tab.js             the bar tab: fees, the waiter, paying up or washing it off
+js/kitchen3d.js       the 3D receipt printer and the 3D dishwashing sink
 js/ads.js             the totally real sponsors ($100 for the broke)
 js/slots.js           DRAGON RUSH WIN BIG: tumbles, free spins, buy bonus, autoplay
 js/rush-math.js       the slot maths: clusters, tumbles, ×1024 multiplier spots
