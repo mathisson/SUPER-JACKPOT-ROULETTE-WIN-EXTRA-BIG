@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { buildScenery } from './scenery.js';
 
 // European single-zero wheel order, clockwise when viewed from above.
 export const WHEEL_ORDER = [
@@ -62,19 +63,20 @@ export class RouletteWheel {
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
     this.camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
-    this.camera.position.set(0, 8.6, 7.2);
+    this.camera.position.set(0, 7.3, 8.9);
 
     const controls = (this.controls = new OrbitControls(this.camera, renderer.domElement));
-    controls.target.set(0, 0, 0.2);
+    controls.target.set(0, -0.2, 0.5);
     controls.enableDamping = true;
     controls.enablePan = false;
     controls.minDistance = 7;
-    controls.maxDistance = 16;
+    controls.maxDistance = 19;
     controls.minPolarAngle = 0.15;
     controls.maxPolarAngle = 1.2;
 
     this.addLights();
     this.build();
+    this.scenery = buildScenery(this.scene, renderer);
 
     this.phi = 0;            // wheel rotation
     this.idleOmega = 0.3;    // wheel idle speed (rad/s)
@@ -96,8 +98,8 @@ export class RouletteWheel {
     key.castShadow = true;
     key.shadow.mapSize.set(2048, 2048);
     const s = key.shadow.camera;
-    s.left = s.bottom = -6;
-    s.right = s.top = 6;
+    s.left = s.bottom = -9.5;
+    s.right = s.top = 9.5;
     s.near = 1;
     s.far = 25;
     key.shadow.bias = -0.0005;
@@ -117,16 +119,6 @@ export class RouletteWheel {
     const woodDark = new THREE.MeshStandardMaterial({ color: 0x2b1409, roughness: 0.3, metalness: 0.05 });
     const woodRim = new THREE.MeshStandardMaterial({ color: 0x6e3314, roughness: 0.38, metalness: 0.05 });
     const woodCone = new THREE.MeshStandardMaterial({ color: 0x8c4a1c, roughness: 0.32, metalness: 0.05 });
-
-    // Felt table
-    const felt = new THREE.Mesh(
-      new THREE.CircleGeometry(30, 64),
-      new THREE.MeshStandardMaterial({ color: 0x0c4a2b, roughness: 1 })
-    );
-    felt.rotation.x = -Math.PI / 2;
-    felt.position.y = -0.42;
-    felt.receiveShadow = true;
-    this.scene.add(felt);
 
     // Static bowl: sloped apron (ball track) + wooden rim
     const lathe = (pts, mat) => {
@@ -348,6 +340,7 @@ export class RouletteWheel {
   frame() {
     const dt = Math.min(this.clock.getDelta(), 0.05);
     this.glow.intensity *= Math.exp(-dt * 1.4);
+    this.scenery.update(this.clock.elapsedTime, dt);
     this.omega += (this.idleOmega - this.omega) * (1 - Math.exp(-dt * 0.3));
     this.phi += this.omega * dt;
     this.wheel.rotation.y = this.phi;

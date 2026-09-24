@@ -49,6 +49,9 @@
         </aside>
       </div>
       <div class="controls">
+        <button id="allInBtn" class="allin" type="button" title="ALL IN: your next spot gets every chip you have" aria-pressed="false">
+          <span>ALL<br>IN</span>
+        </button>
         <div class="actions">
           <button id="undoBtn" class="btn">Undo</button>
           <button id="clearBtn" class="btn">Clear</button>
@@ -57,7 +60,10 @@
           <button id="spinBtn" class="btn spin">SPIN</button>
         </div>
       </div>
-      <p class="hint">Click a spot to drop the selected chip · Right-click to take it back · Space to spin</p>
+      <p class="hint">
+        <span class="hint-desktop">Click a spot to drop the selected chip · Right-click to take it back · Space to spin</span>
+        <span class="hint-touch">Tap a spot or a line to bet · Undo takes the last chip back</span>
+      </p>
     </section>
   </main>
 

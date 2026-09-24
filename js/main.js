@@ -186,6 +186,29 @@ const sound = {
     });
   },
   cash() { [880, 1320, 1760].forEach((f, i) => this.blip(f, 0.15, 'sine', 0.15, i * 0.07)); },
+  armed() {
+    // two-tone alarm as the ALL IN button is armed
+    for (let i = 0; i < 4; i++) this.blip(i % 2 ? 660 : 880, 0.14, 'square', 0.07, i * 0.15);
+  },
+  allIn() {
+    // rising whoosh into a big impact
+    if (this.muted) return;
+    const c = this.ensure();
+    const t = c.currentTime;
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(120, t);
+    o.frequency.exponentialRampToValueAtTime(1400, t + 0.45);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.09, t + 0.4);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+    o.connect(g).connect(c.destination);
+    o.start(t);
+    o.stop(t + 0.52);
+    this.boom(0.8, 0.45);
+    [262, 330, 392, 523].forEach((f) => this.blip(f, 0.9, 'sawtooth', 0.04, 0.45));
+  },
 };
 
 // ---------- bet definitions ----------
@@ -228,30 +251,44 @@ for (let n = 1; n <= 34; n += 3) {
 const board = $('board');
 const cells = {};
 
-function addCell(key, col, row, cls = '') {
+// Each cell gets two grid placements: the wide landscape table (--col/--row) and the
+// portrait phone table (--vcol/--vrow), where 0 sits on top and numbers run down in rows of three.
+function addCell(key, [col, row], [vcol, vrow], cls = '') {
   const el = document.createElement('button');
   el.type = 'button';
   el.className = 'cell ' + cls;
   el.dataset.key = key;
-  el.style.gridColumn = col;
-  el.style.gridRow = row;
+  el.style.setProperty('--col', col);
+  el.style.setProperty('--row', row);
+  el.style.setProperty('--vcol', vcol);
+  el.style.setProperty('--vrow', vrow);
   el.innerHTML = `<span class="label">${BETS[key].label}</span><span class="stack"></span>`;
   board.appendChild(el);
   cells[key] = el;
 }
 
-addCell('n0', '1', '1 / 4', 'num green zero');
+addCell('n0', ['1', '1 / 4'], ['3 / 6', '1'], 'num green zero');
 for (let n = 1; n <= 36; n++) {
-  addCell('n' + n, String(Math.ceil(n / 3) + 1), String(3 - ((n - 1) % 3)), 'num ' + colorOf(n));
+  addCell(
+    'n' + n,
+    [String(Math.ceil(n / 3) + 1), String(3 - ((n - 1) % 3))],
+    [String(3 + ((n - 1) % 3)), String(1 + Math.ceil(n / 3))],
+    'num ' + colorOf(n)
+  );
 }
-addCell('col3', '14', '1', 'outside');
-addCell('col2', '14', '2', 'outside');
-addCell('col1', '14', '3', 'outside');
-addCell('dozen1', '2 / 6', '4', 'outside');
-addCell('dozen2', '6 / 10', '4', 'outside');
-addCell('dozen3', '10 / 14', '4', 'outside');
-[['low', 2], ['even', 4], ['red', 6], ['black', 8], ['odd', 10], ['high', 12]].forEach(([k, c]) =>
-  addCell(k, `${c} / ${c + 2}`, '5', 'outside ' + (k === 'red' || k === 'black' ? 'swatch ' + k : ''))
+addCell('col3', ['14', '1'], ['5', '14'], 'outside');
+addCell('col2', ['14', '2'], ['4', '14'], 'outside');
+addCell('col1', ['14', '3'], ['3', '14'], 'outside');
+[1, 2, 3].forEach((k) =>
+  addCell('dozen' + k, [`${4 * k - 2} / ${4 * k + 2}`, '4'], ['2', `${4 * k - 2} / span 4`], 'outside side')
+);
+['low', 'even', 'red', 'black', 'odd', 'high'].forEach((k, i) =>
+  addCell(
+    k,
+    [`${2 + 2 * i} / ${4 + 2 * i}`, '5'],
+    ['1', `${2 + 2 * i} / span 2`],
+    'outside side ' + (k === 'red' || k === 'black' ? 'swatch ' + k : '')
+  )
 );
 cells.red.querySelector('.label').innerHTML = '<i class="diamond red"></i>';
 cells.black.querySelector('.label').innerHTML = '<i class="diamond black"></i>';
@@ -280,7 +317,9 @@ for (let n = 1; n <= 34; n += 3) {
 const betTarget = (e) => e.target.closest('[data-key]');
 board.addEventListener('click', (e) => {
   const t = betTarget(e);
-  if (t) placeBet(t.dataset.key);
+  if (!t) return;
+  if (allIn) goAllIn(t.dataset.key);
+  else placeBet(t.dataset.key);
 });
 board.addEventListener('contextmenu', (e) => {
   const t = betTarget(e);
@@ -436,9 +475,9 @@ function fly(from, to, denom, { delay = 0, onStart, onLand, fade = false } = {})
 }
 
 /** Chips leave the rack and land on a betting spot. */
-function throwToSpot(key, amount, delay = 0) {
+function throwToSpot(key, amount, delay = 0, maxChips = 6) {
   addBank(-amount);
-  pieces(amount).forEach((p, i) =>
+  pieces(amount, maxChips).forEach((p, i) =>
     fly(rackPoint(p.denom)(), cells[key], p.denom, {
       delay: delay + i * 70,
       onLand: () => {
@@ -469,7 +508,7 @@ function clearHighlights() {
   board.querySelectorAll('.winner, .won, .lost').forEach((c) => c.classList.remove('winner', 'won', 'lost'));
 }
 
-function placeBet(key, amount = chipValue, record = true, delay = 0) {
+function placeBet(key, amount = chipValue, record = true, delay = 0, maxChips = 6) {
   if (spinning) return false;
   if (balance < amount) {
     toast('Not enough balance — add some fake funds');
@@ -480,7 +519,7 @@ function placeBet(key, amount = chipValue, record = true, delay = 0) {
   balance -= amount;
   bets.set(key, (bets.get(key) || 0) + amount);
   if (record) actions.push({ key, amount });
-  throwToSpot(key, amount, delay);
+  throwToSpot(key, amount, delay, maxChips);
   render();
   return true;
 }
@@ -521,6 +560,39 @@ $('rebetBtn').addEventListener('click', () => {
   [...lastBets.entries()].forEach(([key, amt], i) => placeBet(key, amt, true, i * 90));
 });
 
+// ---------- ALL IN ----------
+let allIn = false;
+function setAllIn(on) {
+  allIn = on;
+  const b = $('allInBtn');
+  b.classList.toggle('armed', on);
+  b.setAttribute('aria-pressed', String(on));
+  board.classList.toggle('allin-armed', on);
+  b.disabled = !on && (spinning || balance < 1);
+}
+$('allInBtn').addEventListener('click', () => {
+  if (spinning) return;
+  if (allIn) return setAllIn(false);
+  if (balance < 1) return toast('Nothing left to go all in with — add some fake funds');
+  setAllIn(true);
+  sound.armed();
+  toast(`ALL IN armed — your next spot gets all ${money(balance)}`);
+});
+function goAllIn(key) {
+  const amount = balance;
+  setAllIn(false);
+  if (amount < 1) return;
+  placeBet(key, amount, true, 0, 12);
+  sound.allIn();
+  document.querySelectorAll('header, main').forEach((el) => {
+    el.classList.remove('shake-2');
+    void el.offsetWidth;
+    el.classList.add('shake-2');
+    setTimeout(() => el.classList.remove('shake-2'), 1000);
+  });
+  toast(`ALL IN! ${money(amount)} on ${BETS[key].label}`);
+}
+
 $('doubleBtn').addEventListener('click', () => {
   if (spinning || !bets.size) return;
   const need = totalBets();
@@ -548,6 +620,7 @@ function randomNumber() {
 
 $('spinBtn').addEventListener('click', spin);
 document.addEventListener('keydown', (e) => {
+  if (e.code === 'Escape' && allIn) return setAllIn(false);
   if ((e.code === 'Space' || e.code === 'Escape') && fxActive()) {
     e.preventDefault();
     return dismissFx();
@@ -562,10 +635,15 @@ async function spin() {
   if (spinning) return;
   if (!bets.size) return toast('Place a bet first');
   sound.ensure();
+  setAllIn(false);
   spinning = true;
   lastBets = new Map(bets);
   hideResult();
   render();
+  // On phones the table sits below the wheel, so bring the wheel into view for the spin
+  if (matchMedia('(max-width: 700px)').matches) {
+    document.querySelector('.stage').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   const result = await wheel.spin(randomNumber());
   settle(result);
@@ -689,6 +767,7 @@ function render() {
   $('rebetBtn').disabled = spinning || !lastBets;
   $('doubleBtn').disabled = spinning || !bets.size;
   board.classList.toggle('locked', spinning);
+  $('allInBtn').disabled = !allIn && (spinning || balance < 1);
   renderRack();
 
   // Stakes still on the felt count as yours until the wheel is spun
