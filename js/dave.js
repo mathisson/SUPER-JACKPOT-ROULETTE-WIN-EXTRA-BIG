@@ -507,12 +507,16 @@ export function createDave({ wheel, stage, store, sound, toast, booze, getBalanc
 
   /** The phone's text tone: a bright little three-note chime, and a buzz on real phones. */
   function textTone() {
-    [1318.5, 1975.5, 2637].forEach((f, i) => {
-      sound.blip(f, 0.16, 'triangle', 0.11, i * 0.085);
-      sound.blip(f * 2, 0.06, 'sine', 0.03, i * 0.085);
-    });
+    // your ringtone (the phone plugs it in), or the classic chime
+    if (hooks.tone) hooks.tone();
+    else
+      [1318.5, 1975.5, 2637].forEach((f, i) => {
+        sound.blip(f, 0.16, 'triangle', 0.11, i * 0.085);
+        sound.blip(f * 2, 0.06, 'sine', 0.03, i * 0.085);
+      });
+    // (browsers only allow vibrating once you have interacted with the page)
     try {
-      navigator.vibrate?.([70, 50, 70]);
+      if (navigator.userActivation?.hasBeenActive) navigator.vibrate?.([70, 50, 70]);
     } catch {}
   }
 
@@ -654,7 +658,7 @@ export function createDave({ wheel, stage, store, sound, toast, booze, getBalanc
     snatch,
     /** Subscribe to 'message' | 'typing' | 'read' | 'sorry'. */
     on: (fn) => listeners.push(fn),
-    /** The phone plugs in: openPhone(app), closePhone(), isReading(), phonePoint(), onText(msg). */
+    /** The phone plugs in: openPhone(app), closePhone(), isReading(), phonePoint(), onText(msg), tone(). */
     setHooks: (h) => Object.assign(hooks, h),
   };
 }

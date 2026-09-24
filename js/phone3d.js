@@ -7,6 +7,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildAvatar, animateAvatar, disposeAvatar } from './avatar.js';
 import { buildDave } from './dave.js';
+import { caseMaterial, caseExtras } from './skins.js';
 
 const PHONE_W = 2.1;
 const PHONE_H = 4.3;
@@ -16,8 +17,8 @@ const PX = SCREEN_W / SCREEN_PX.w;
 const ease = (t) => 1 - (1 - t) ** 3;
 
 export class PhoneOverlay {
-  /** container: full-screen layer. screenEl: the phone's HTML screen (380×800 px). */
-  constructor(container, screenEl) {
+  /** container: full-screen layer. screenEl: the phone's HTML screen (380×800 px). skin: the case you bought. */
+  constructor(container, screenEl, { skin = 'graphite' } = {}) {
     this.container = container;
     const gl = (this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }));
     gl.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -59,6 +60,15 @@ export class PhoneOverlay {
       b.position.set(x, y, 0);
       phone.add(b);
     }
+    // the case: a slightly bigger shell behind the phone, so its rim shows all round the screen
+    const cm = caseMaterial(skin);
+    if (cm) {
+      const shell = new THREE.Mesh(new RoundedBoxGeometry(PHONE_W + 0.16, PHONE_H + 0.16, 0.3, 6, 0.34), cm);
+      shell.position.z = -0.04;
+      phone.add(shell);
+    }
+    this.extras = caseExtras(skin, PHONE_W + 0.16, PHONE_H + 0.16);
+    phone.add(this.extras);
     // the HTML screen, floating just above the glass
     this.screen = new CSS3DObject(screenEl);
     this.screen.scale.setScalar(PX);
@@ -118,6 +128,9 @@ export class PhoneOverlay {
     // rises from below, turning to face you; tilts a little with the mouse
     p.position.set(this.restX + (1 - k) * 0.6, -(1 - k) * 9 + Math.sin(t * 1.3) * 0.02, 0);
     p.rotation.set((1 - k) * 0.9 + this.pointer.y * 0.06, (1 - k) * -0.5 + this.pointer.x * 0.08, (1 - k) * 0.25);
+    // the Dave keychain swings
+    const dangle = this.extras.userData.dangle;
+    if (dangle) dangle.rotation.z = Math.sin(t * 2.2) * 0.35 + (this.buzz > 0 ? Math.sin(t * 40) * 0.3 : 0);
     if (this.buzz > 0) {
       this.buzz -= dt;
       p.position.x += Math.sin(t * 90) * 0.02;
@@ -154,8 +167,9 @@ export class PhoneOverlay {
 
 // ---------- the front camera: you, the casino behind you, maybe Dave ----------
 export class SelfieCam {
-  /** canvas: where the viewfinder draws. drunk: 0..4. dave: photobomb? */
-  constructor(canvas, { look, drunk = 0, dave = false }) {
+  /** canvas: where the viewfinder draws. drunk: 0..4. dave: photobomb? emote: your pose. */
+  constructor(canvas, { look, drunk = 0, dave = false, emote = 'wave' }) {
+    this.emote = emote;
     this.canvas = canvas;
     const r = (this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true }));
     r.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -165,6 +179,9 @@ export class SelfieCam {
 
     const s = (this.scene = new THREE.Scene());
     s.background = new THREE.Color(0x12060a);
+    const pmrem = new THREE.PMREMGenerator(r);
+    this.env = s.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture; // so gold looks gold
+    pmrem.dispose();
     s.add(new THREE.HemisphereLight(0xffe8f0, 0x200a10, 0.8));
     const key = new THREE.DirectionalLight(0xfff0e0, 1.7);
     key.position.set(1, 3, 4);
@@ -210,9 +227,40 @@ export class SelfieCam {
       this.dave.root.rotation.y = 0.5;
       s.add(this.dave.root);
     }
+    // make it rain: bills tumbling down all around you (only for that emote)
+    const billTex = (() => {
+      const c = document.createElement('canvas');
+      c.width = 128;
+      c.height = 56;
+      const x = c.getContext('2d');
+      x.fillStyle = '#85bb65';
+      x.fillRect(0, 0, 128, 56);
+      x.strokeStyle = '#2e5a1c';
+      x.lineWidth = 4;
+      x.strokeRect(3, 3, 122, 50);
+      x.fillStyle = '#2e5a1c';
+      x.font = 'bold 30px Georgia, serif';
+      x.textAlign = 'center';
+      x.textBaseline = 'middle';
+      x.fillText('$', 64, 30);
+      const t = new THREE.CanvasTexture(c);
+      t.colorSpace = THREE.SRGBColorSpace;
+      return t;
+    })();
+    this.bills = new THREE.Group();
+    for (let i = 0; i < 34; i++) {
+      const b = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.15), new THREE.MeshStandardMaterial({ map: billTex, side: THREE.DoubleSide, roughness: 0.8 }));
+      b.userData = { x: -1.4 + Math.random() * 2.8, z: -0.8 + Math.random() * 1.8, speed: 0.4 + Math.random() * 0.5, phase: Math.random() * 10, spin: 1 + Math.random() * 3 };
+      this.bills.add(b);
+    }
+    s.add(this.bills);
     this.camera = new THREE.PerspectiveCamera(52, canvas.clientWidth / canvas.clientHeight, 0.1, 50);
     this.clock = new THREE.Clock();
     r.setAnimationLoop(() => this.frame());
+  }
+
+  setEmote(id) {
+    this.emote = id;
   }
 
   setLook(look) {
@@ -223,7 +271,16 @@ export class SelfieCam {
 
   frame() {
     const t = this.clock.getElapsedTime();
-    animateAvatar(this.me, t, { pose: 'selfie' });
+    animateAvatar(this.me, t, { pose: 'selfie', emote: this.emote });
+    this.bills.visible = this.emote === 'moneyrain';
+    if (this.bills.visible) {
+      for (const b of this.bills.children) {
+        const u = b.userData;
+        const y = 3.4 - ((t * u.speed + u.phase) % 3.2);
+        b.position.set(u.x + Math.sin(t * 1.5 + u.phase) * 0.15, y, u.z);
+        b.rotation.set(t * u.spin, t * u.spin * 0.7, Math.sin(t + u.phase));
+      }
+    }
     if (this.dave) {
       // photobomb: leans in, pulls a face, peace sign
       this.dave.body.rotation.z = -0.3 + Math.sin(t * 2) * 0.08;
@@ -271,6 +328,7 @@ export class SelfieCam {
         m.dispose();
       });
     });
+    this.env?.dispose();
     this.renderer.dispose();
     this.renderer.forceContextLoss?.();
   }

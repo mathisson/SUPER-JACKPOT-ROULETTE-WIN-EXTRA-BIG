@@ -1,7 +1,9 @@
 // ⚙️ SETTINGS, top-right corner: your 3D character on a turntable, a character editor,
 // a store for hats and bling, and the actual settings (sound, music, Dave, motion).
 
-import { AvatarStage, BASE, CATALOG, SLOTS, DEFAULT_LOOK, portrait } from './avatar.js';
+import { AvatarStage, BASE, CATALOG, SLOTS, REQUIRED_SLOTS, DEFAULT_LOOK, portrait } from './avatar.js';
+
+const PHONE_SLOTS = new Set(['phoneSkin', 'wallpaper']);
 
 const money = (n) => '$' + Math.round(n).toLocaleString('en-US');
 const byId = (id) => CATALOG.find((c) => c.id === id);
@@ -10,11 +12,12 @@ const byId = (id) => CATALOG.find((c) => c.id === id);
  * @param button    the top-right button (gets your portrait)
  * @param prefs     [{ id, label, desc, get: () => bool, set: (bool) => void }]
  * @param pause3d / resume3d  only one 3D room renders at a time
+ * @param preview   { tone(id), win(id) }: hear a ringtone, see a win style
  */
-export function createSettings({ button, store, sound, toast, getBalance, spend, prefs, pause3d, resume3d }) {
+export function createSettings({ button, store, sound, toast, getBalance, spend, prefs, pause3d, resume3d, preview: demo = {} }) {
   let look = { ...DEFAULT_LOOK, ...store.get('fr.look', {}) };
   let owned = new Set(store.get('fr.owned', ['tshirt']));
-  owned.add('tshirt');
+  CATALOG.filter((c) => c.price === 0).forEach((c) => owned.add(c.id)); // the free defaults
   const save = () => {
     store.set('fr.look', look);
     store.set('fr.owned', [...owned]);
@@ -86,6 +89,7 @@ export function createSettings({ button, store, sound, toast, getBalance, spend,
     el = null;
     stage = null;
     trying = null;
+    showPhone = false;
     dying.classList.remove('on');
     removeEventListener('keydown', onKey, true);
     setTimeout(() => {
@@ -97,11 +101,25 @@ export function createSettings({ button, store, sound, toast, getBalance, spend,
     refreshButton();
   }
 
+  let showPhone = false;
   function preview() {
-    stage?.setLook(trying ? { ...look, [trying.slot]: trying.id } : look);
+    const l = trying ? { ...look, [trying.slot]: trying.id } : look;
+    stage?.setLook(l, { phoneInHand: showPhone || PHONE_SLOTS.has(trying?.slot) });
+  }
+
+  /** What trying (or equipping) something does, besides dressing you up. */
+  function demoItem(item) {
+    if (PHONE_SLOTS.has(item.slot)) showPhone = true;
+    if (item.slot === 'ringtone') demo.tone?.(item.id);
+    if (item.slot === 'winFx') demo.win?.(item.id);
+    if (item.slot === 'emote') stage?.playEmote(item.id);
   }
 
   function setLook(patch) {
+    for (const [slot, id] of Object.entries(patch)) {
+      const item = CATALOG.find((c) => c.id === id && c.slot === slot);
+      if (item) demoItem(item);
+    }
     look = { ...look, ...patch };
     save();
     preview();
@@ -112,8 +130,9 @@ export function createSettings({ button, store, sound, toast, getBalance, spend,
   // ---------- tabs ----------
   function show(which) {
     if (!el) return;
-    if (tab === 'store' && which !== 'store' && trying) {
+    if (tab === 'store' && which !== 'store' && (trying || showPhone)) {
       trying = null;
+      showPhone = false;
       preview();
     }
     tab = which;
@@ -136,7 +155,7 @@ export function createSettings({ button, store, sound, toast, getBalance, spend,
   function characterHtml() {
     const slotRow = ([slot, label]) => {
       const mine = CATALOG.filter((c) => c.slot === slot && owned.has(c.id));
-      const none = slot === 'top' ? '' : `<button type="button" class="st-chip${!look[slot] ? ' on' : ''}" data-set="${slot}" data-val="">None</button>`;
+      const none = REQUIRED_SLOTS.has(slot) ? '' : `<button type="button" class="st-chip${!look[slot] ? ' on' : ''}" data-set="${slot}" data-val="">None</button>`;
       return `<h4>${label}</h4><div class="st-chips">${none}${mine
         .map((c) => `<button type="button" class="st-chip${look[slot] === c.id ? ' on' : ''}" data-set="${slot}" data-val="${c.id}">${c.emoji} ${c.name}</button>`)
         .join('')}${mine.length < CATALOG.filter((c) => c.slot === slot).length ? `<button type="button" class="st-chip st-more" data-goto="store" data-slot="${slot}">🛍️ More…</button>` : ''}</div>`;
@@ -177,7 +196,7 @@ export function createSettings({ button, store, sound, toast, getBalance, spend,
               <span class="st-emoji">${c.emoji}</span>
               <b>${c.name}</b>
               ${c.note ? `<small>${c.note}</small>` : ''}
-              <em>${onTry ? '👀 Trying on' : has ? 'Owned' : 'Tap to try on'}</em>
+              <em>${onTry ? '👀 Trying on' : { ringtone: '🔊 Tap to listen', winFx: '🎉 Tap to preview', emote: '🤳 Tap to see it' }[c.slot] || (has ? 'Owned' : 'Tap to try on')}</em>
             </button>
             ${btn}
           </div>`;
@@ -209,17 +228,24 @@ export function createSettings({ button, store, sound, toast, getBalance, spend,
       show('store');
     } else if (t.dataset.filter) {
       storeSlot = t.dataset.filter;
+      showPhone = PHONE_SLOTS.has(storeSlot);
+      preview();
       show('store');
     } else if (t.dataset.try) {
       const item = byId(t.dataset.try);
+      if (['ringtone', 'winFx', 'emote'].includes(item.slot)) {
+        demoItem(item);
+        return;
+      }
       trying = trying?.id === item.id ? null : item;
+      demoItem(item);
       preview();
       sound.blip(trying ? 1000 : 700, 0.05, 'triangle', 0.07);
       show('store');
     } else if (t.dataset.equip) {
       const item = byId(t.dataset.equip);
       trying = null;
-      setLook({ [item.slot]: look[item.slot] === item.id && item.slot !== 'top' ? null : item.id });
+      setLook({ [item.slot]: look[item.slot] === item.id && !REQUIRED_SLOTS.has(item.slot) ? null : item.id });
       show('store');
     } else if (t.dataset.buy) {
       const item = byId(t.dataset.buy);
@@ -251,6 +277,7 @@ export function createSettings({ button, store, sound, toast, getBalance, spend,
     close,
     isOpen: () => !!el,
     look: () => look,
+    owns: (id) => owned.has(id),
     /** fn(look) whenever your character changes */
     onChange: (fn) => listeners.push(fn),
   };

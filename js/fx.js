@@ -172,8 +172,13 @@ export function winLevel(net, staked) {
   return mult >= 15 ? 3 : mult >= 4 ? 2 : mult >= 1.5 ? 1 : 0;
 }
 
+// your win style (bought in the store) plugs in here, for roulette and slots alike
+let winFlair = null;
+export const setWinFlair = (fn) => (winFlair = fn);
+
 export function celebrate({ net, level, origin }) {
   const duration = 2600 + level * 900;
+  winFlair?.({ level, origin });
 
   // Screen shake + flash
   const shaken = document.querySelectorAll('header, main');
