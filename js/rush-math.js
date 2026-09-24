@@ -25,8 +25,13 @@ export const PAYS = Object.fromEntries(
 export const payFor = (sym, size) => PAYS[sym][Math.min(size, 15) - MIN_CLUSTER] || 0;
 
 // scatters anywhere on the final grid → free spins
-// buying the bonus: 10 free spins simulated at ~102× bet, so it costs 105× (~97% return)
-export const BUY_COST = 105;
+// BUY BONUS menu. Simulated over 20k bonuses each:
+//   FREE SPINS: 10 spins, averages ~96× bet  → costs 100×
+//   SUPER FREE SPINS: 10 spins with every spot already ×2, averages ~577× bet → costs 600×
+export const BUYS = [
+  { id: 'normal', name: 'FREE SPINS', cost: 100, spins: 10, start: 0, blurb: '10 free spins. Multiplier spots stick all bonus.' },
+  { id: 'super', name: 'SUPER FREE SPINS', cost: 600, spins: 10, start: 2, blurb: '10 free spins and EVERY spot starts at ×2. Absolute chaos.' },
+];
 // simulated over 400k spins: base game ~65%, free spins ~31%, total ~96% return
 export const FREE_SPINS = { 3: 10, 4: 12, 5: 15, 6: 20, 7: 30 };
 export const freeSpinsFor = (n) => (n >= 3 ? FREE_SPINS[Math.min(n, 7)] : 0);

@@ -88,8 +88,11 @@ Hit the glowing **SLOTS ➜** arrow and *walk* (footsteps and all) into the slot
 - **TUMBLES.** Winners explode into sparks, everything falls, new gems drop in. Chain them: *BOOM! TUMBLE ×3*, *YOU ARE ON A ROLL!*, *WHAT IS HAPPENING*.
 - **MULTIPLIER SPOTS.** Every explosion marks its spot; the next one makes it **×2**, then it doubles every hit, all the way to **×1024**. A cluster over lit spots is multiplied by the sum of them. Hit ×1024 and the dragon briefly announces **×100000000000000000000000000000000000000** before the Dragon Tax Office steps in.
 - **🔥 FLAMING PEARLS.** 3 / 4 / 5 / 6 / 7 scatters give 10 / 12 / 15 / 20 / 30 **FREE SPINS**, and in free spins **the multiplier spots stick** for the whole bonus. The sky turns gold and the dragon gets excited.
-- **BUY FREE SPINS** for 105× your bet if you're impatient. Plus **AUTO** (10 spins) and **⚡ TURBO**.
-- Simulated over 400,000 spins at a ~96% return, so it's generous but still a casino.
+- **💸 BUY BONUS:** *Free Spins* for 100× your bet, or **SUPER FREE SPINS** for 600× where every spot starts at ×2. Your friends asked for it.
+- **🕹 THE LEVER:** pull it to spin. **Hold it down for LEVER TURBO**: ratchets, sparks, and spin after spin until you let go.
+- **🤖 AUTO** plays until you stop it or the money runs out (whichever comes first, and we know which one). Plus **⚡ TURBO**.
+- Epic cinematic bonus screens, fireworks in the sky, and multiplier tiles that glow gold → pink → purple → blue → rainbow as they climb.
+- Simulated over 400,000 spins at a ~96% return (bonus buys ≈96% too), so it's generous but still a casino.
 
 `Space` spins, `Esc` walks you back to roulette.
 
@@ -135,7 +138,7 @@ Once a day you're offered a **life-changing reward**, delivered via a **30-secon
 The Skip button runs away from your mouse and its countdown keeps starting over. Escape and Space just get you *"Nice try 😏"*. Declining also takes 30 seconds. Want to watch it again today? Add `?bonus` to the URL.
 
 ### 💳 The Fake Bank of Fake Money
-Out of chips? Hit **+ Add funds** and "deposit" with a fake card. There's a live card preview, validation and a very convincing "Pretending to contact the bank…" spinner.
+Out of chips? Hit **+ Add funds** and "deposit" with a fake card. There's a live card preview, validation and a very convincing "Pretending to contact the bank…" spinner. No card? Switch to the **📱 Swish (fake)** tab, pick an amount and approve on a pretend phone with your imaginary fingerprint. No app, no phone number, no real money.
 
 - ✅ `4242 4242 4242 4242` always works
 - ❌ `4000 0000 0000 0002` always gets declined (for the drama)

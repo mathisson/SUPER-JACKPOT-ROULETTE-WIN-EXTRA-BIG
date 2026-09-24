@@ -15,7 +15,7 @@ const xOf = (c) => (c - (COLS - 1) / 2) * CELL;
 const yOf = (r) => ((ROWS - 1) / 2 - r) * CELL;
 const EMOJI = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
 // the framed area the camera keeps in view (pagoda roof + pillars + base)
-const FIT = { w: 11.4, h: 10.6, cy: 0.75 };
+const FIT = { w: 12.4, h: 10.6, cy: 0.75, cx: 0.45 };
 
 export const SYMBOL_INFO = {
   sapph: { name: 'SAPPHIRES', color: '#3d7bff' },
@@ -222,9 +222,11 @@ function buildSymbols(clip) {
 
 // ---------------------------------------------------------------- the machine
 export class DragonRush3D {
-  constructor(container, { slotEl }) {
+  constructor(container, { slotEl, onLeverDown, onLeverUp }) {
     this.container = container;
     this.slotEl = slotEl;
+    this.onLeverDown = onLeverDown;
+    this.onLeverUp = onLeverUp;
     this.speed = 1;
 
     const renderer = (this.renderer = new THREE.WebGLRenderer({ antialias: true }));
@@ -239,7 +241,7 @@ export class DragonRush3D {
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
     this.camera = new THREE.PerspectiveCamera(30, 1, 0.1, 400);
-    this.target = new THREE.Vector3(0, FIT.cy, 0);
+    this.target = new THREE.Vector3(FIT.cx, FIT.cy, 0);
     this.dist = 26;
 
     this.scene.add(new THREE.HemisphereLight(0xfff0f4, 0x301030, 0.9));
@@ -262,6 +264,7 @@ export class DragonRush3D {
     this.buildGate();
     this.buildSpots();
     this.buildSparks();
+    this.buildLever();
 
     this.board = new THREE.Group();
     this.scene.add(this.board);
@@ -277,7 +280,27 @@ export class DragonRush3D {
       const r = container.getBoundingClientRect();
       this.pointer.x = ((e.clientX - r.left) / r.width - 0.5) * 2;
       this.pointer.y = ((e.clientY - r.top) / r.height - 0.5) * 2;
+      renderer.domElement.style.cursor = this.hitsLever(e) ? (this.leverHeld ? 'grabbing' : 'grab') : '';
     });
+    // the lever: press to pull, hold it down for turbo
+    renderer.domElement.addEventListener('pointerdown', (e) => {
+      if (!this.hitsLever(e)) return;
+      e.preventDefault();
+      this.leverHeld = true;
+      this.leverTarget = 1;
+      renderer.domElement.setPointerCapture?.(e.pointerId);
+      renderer.domElement.style.cursor = 'grabbing';
+      this.onLeverDown?.();
+    });
+    const release = () => {
+      if (!this.leverHeld) return;
+      this.leverHeld = false;
+      this.leverTarget = 0;
+      this.onLeverUp?.();
+    };
+    renderer.domElement.addEventListener('pointerup', release);
+    renderer.domElement.addEventListener('pointercancel', release);
+    addEventListener('blur', release);
 
     this.clock = new THREE.Clock();
     this.running = false;
@@ -605,84 +628,228 @@ export class DragonRush3D {
     s.add(baseTrim);
   }
 
+  // ---------- the lever (right of the gate) ----------
+  buildLever() {
+    const gold = new THREE.MeshPhysicalMaterial({ color: 0xffc53a, metalness: 1, roughness: 0.2, clearcoat: 0.6 });
+    const red = new THREE.MeshPhysicalMaterial({ color: 0xff1f3d, roughness: 0.12, clearcoat: 1, emissive: 0x800010, emissiveIntensity: 0.6 });
+    this.leverBallMat = red;
+    const x = W / 2 + 1.85;
+    const y = -0.9;
+    const lever = (this.lever = new THREE.Group());
+    lever.position.set(x, y, -0.1);
+    lever.scale.setScalar(1.35);
+    this.scene.add(lever);
+    // the housing bolted to the pillar
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.34, 1.3, 0.5), new THREE.MeshPhysicalMaterial({ color: 0x8e0f1f, roughness: 0.35, clearcoat: 0.9 }));
+    plate.position.set(-0.3, 0, -0.1);
+    lever.add(plate);
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.5, 32), gold);
+    hub.rotation.z = Math.PI / 2;
+    lever.add(hub);
+    const pivot = (this.leverPivot = new THREE.Group());
+    lever.add(pivot);
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.13, 2.3, 16), gold);
+    arm.position.y = 1.15;
+    pivot.add(arm);
+    const ball = (this.leverBall = new THREE.Mesh(new THREE.SphereGeometry(0.4, 32, 20), red));
+    ball.position.y = 2.4;
+    pivot.add(ball);
+    const glow = (this.leverGlow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: glowTexture('rgba(255,90,120,1)'), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false })));
+    glow.position.set(0, 2.4, 0.3);
+    glow.scale.setScalar(1.6);
+    pivot.add(glow);
+    this.leverParts = [plate, hub, arm, ball];
+    this.leverAngle = 0;
+    this.leverVel = 0;
+    this.leverTarget = 0;
+    this.leverHeld = false;
+    this.leverTurbo = 0;
+    this.ray = new THREE.Raycaster();
+  }
+  hitsLever(e) {
+    const r = this.renderer.domElement.getBoundingClientRect();
+    const v = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    this.ray.setFromCamera(v, this.camera);
+    // a fat hit zone around the ball so it's easy to grab on phones
+    if (this.ray.intersectObjects(this.leverParts, false).length) return true;
+    const p = this.leverBall.getWorldPosition(new THREE.Vector3());
+    return this.ray.ray.distanceToPoint(p) < 0.75;
+  }
+  // true while the held lever makes everything go turbo
+  setLeverTurbo(on) {
+    this.leverTurbo = on ? 1 : 0;
+  }
+  updateLever(dt, t) {
+    // springy: snaps down fast, wobbles back up on release
+    const k = this.leverTarget ? 900 : 260;
+    this.leverVel += (this.leverTarget - this.leverAngle) * k * dt;
+    this.leverVel *= Math.pow(this.leverTarget ? 0.0005 : 0.02, dt);
+    this.leverAngle += this.leverVel * dt;
+    this.leverPivot.rotation.x = this.leverAngle * 1.25;
+    const pulse = this.leverTurbo ? 0.6 + 0.4 * Math.sin(t * 22) : 0.35 + 0.15 * Math.sin(t * 3);
+    this.leverBallMat.emissiveIntensity = 0.5 + pulse;
+    this.leverGlow.material.opacity = pulse;
+    this.leverGlow.scale.setScalar(1.4 + pulse * (this.leverTurbo ? 1.8 : 0.6));
+    if (this.leverTurbo && Math.random() < dt * 30) {
+      this.burst(this.leverBall.getWorldPosition(new THREE.Vector3()), Math.random() < 0.5 ? '#ffd23f' : '#ff3d6a', 2, 0.5);
+    }
+  }
+
   // ---------- multiplier spots ----------
   buildSpots() {
     this.spotTex = new Map();
     const plane = new THREE.PlaneGeometry(0.96, 0.96);
+    const glowPlane = new THREE.PlaneGeometry(1.5, 1.5);
+    const glowMap = glowTexture('rgba(255,255,255,0.9)');
     this.spots = Array.from({ length: COLS }, (_, c) =>
       Array.from({ length: ROWS }, (_, r) => {
         const m = new THREE.Mesh(plane, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, toneMapped: false }));
         m.position.set(xOf(c), yOf(r), -0.5);
         m.visible = false;
-        m.userData.v = 0;
+        // a soft pulsing halo behind each multiplier tile
+        const glow = new THREE.Mesh(glowPlane, new THREE.MeshBasicMaterial({ map: glowMap, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+        glow.position.set(xOf(c), yOf(r), -0.55);
+        glow.visible = false;
+        this.scene.add(glow);
+        m.userData = { v: 0, glow, ph: Math.random() * 6.28 };
         this.scene.add(m);
         return m;
       }),
     );
   }
+  // colour tiers: gold ×2–4, pink ×8–16, purple ×32–64, blue ×128–256, rainbow ×512+
+  spotTier(v) {
+    if (v >= 512) return { a: '#fff0ff', b: '#ff4fd8', edge: '#5ab4ff', glow: '#ff9af0', rainbow: true };
+    if (v >= 128) return { a: '#d8f4ff', b: '#3d8bff', edge: '#1a2a9a', glow: '#6ac8ff' };
+    if (v >= 32) return { a: '#f0dcff', b: '#9b3dff', edge: '#3a0a8a', glow: '#c77dff' };
+    if (v >= 8) return { a: '#ffe0ee', b: '#ff3d8a', edge: '#8a0a3a', glow: '#ff6ab0' };
+    return { a: '#fff6c8', b: '#ffb020', edge: '#a0520a', glow: '#ffc53a' };
+  }
   spotTexture(v) {
     if (this.spotTex.has(v)) return this.spotTex.get(v);
-    const [c, g] = canvas(128, 128);
+    const S = 256;
+    const [c, g] = canvas(S, S);
     if (v === 1) {
-      g.fillStyle = 'rgba(255,190,70,0.42)';
-      roundRect(g, 4, 4, 120, 120, 16);
+      // marked: a gentle golden frame with corner studs
+      g.fillStyle = 'rgba(255,200,90,0.22)';
+      roundRect(g, 8, 8, S - 16, S - 16, 30);
       g.fill();
-      g.lineWidth = 5;
-      g.strokeStyle = 'rgba(255,170,40,0.85)';
+      g.lineWidth = 7;
+      g.strokeStyle = 'rgba(255,190,60,0.9)';
       g.stroke();
+      g.fillStyle = '#ffd76a';
+      for (const [x, y] of [[26, 26], [S - 26, 26], [26, S - 26], [S - 26, S - 26]]) {
+        g.beginPath();
+        g.arc(x, y, 7, 0, Math.PI * 2);
+        g.fill();
+      }
     } else {
-      const gr = g.createLinearGradient(0, 0, 0, 128);
-      gr.addColorStop(0, '#ffe98a');
-      gr.addColorStop(0.5, '#ffb627');
-      gr.addColorStop(1, '#e07b00');
-      g.fillStyle = gr;
-      roundRect(g, 4, 4, 120, 120, 16);
+      const t = this.spotTier(v);
+      // tile: glassy radial fill, inner ring, lattice sparkle
+      const fill = g.createRadialGradient(S / 2, S * 0.42, 10, S / 2, S / 2, S * 0.72);
+      fill.addColorStop(0, t.a);
+      fill.addColorStop(0.55, t.b);
+      fill.addColorStop(1, t.edge);
+      g.fillStyle = fill;
+      roundRect(g, 6, 6, S - 12, S - 12, 32);
       g.fill();
-      g.lineWidth = 6;
-      g.strokeStyle = '#fff6c8';
+      if (t.rainbow) {
+        const rb = g.createLinearGradient(0, 0, S, S);
+        ['#ff3d6a', '#ffd23f', '#3dff8a', '#5ab4ff', '#c77dff'].forEach((col, i) => rb.addColorStop(i / 4, col));
+        g.globalAlpha = 0.55;
+        g.fillStyle = rb;
+        g.fill();
+        g.globalAlpha = 1;
+      }
+      g.lineWidth = 8;
+      g.strokeStyle = '#fff6d8';
       g.stroke();
-      const txt = `x${v}`;
-      g.font = `900 ${txt.length > 4 ? 40 : txt.length > 3 ? 48 : 60}px Cinzel, Georgia, serif`;
+      g.lineWidth = 3;
+      g.strokeStyle = 'rgba(255,255,255,0.55)';
+      roundRect(g, 22, 22, S - 44, S - 44, 22);
+      g.stroke();
+      // top gloss
+      const gloss = g.createLinearGradient(0, 6, 0, S * 0.5);
+      gloss.addColorStop(0, 'rgba(255,255,255,0.55)');
+      gloss.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = gloss;
+      roundRect(g, 14, 12, S - 28, S * 0.42, 26);
+      g.fill();
+      // compact badge in the top-left corner, peeking out beside the symbol
+      const txt = `×${v}`;
+      g.font = `900 ${txt.length > 4 ? 30 : 36}px Cinzel, Georgia, serif`;
+      const w = Math.max(78, g.measureText(txt).width + 26);
+      const bx = 8;
+      g.fillStyle = 'rgba(40,4,20,0.9)';
+      roundRect(g, bx, 8, w, 50, 25);
+      g.fill();
+      g.lineWidth = 4;
+      g.strokeStyle = '#ffd76a';
+      g.stroke();
       g.textAlign = 'center';
       g.textBaseline = 'middle';
-      g.lineWidth = 8;
-      g.strokeStyle = '#7a1a00';
-      g.strokeText(txt, 64, 22);
-      g.fillStyle = '#fff';
-      g.fillText(txt, 64, 22);
+      const tg = g.createLinearGradient(0, 14, 0, 56);
+      tg.addColorStop(0, '#ffffff');
+      tg.addColorStop(0.5, '#fff0a0');
+      tg.addColorStop(1, t.glow);
+      g.lineWidth = 6;
+      g.strokeStyle = '#2a0010';
+      g.strokeText(txt, bx + w / 2, 35);
+      g.fillStyle = tg;
+      g.fillText(txt, bx + w / 2, 35);
     }
-    const t = tex(c);
-    this.spotTex.set(v, t);
-    return t;
+    const tx = tex(c);
+    this.spotTex.set(v, tx);
+    return tx;
   }
   setSpot(c, r, v) {
     const m = this.spots[c][r];
     const prev = m.userData.v;
+    const glow = m.userData.glow;
     m.userData.v = v;
     if (!v) {
       m.visible = false;
+      glow.visible = false;
       return;
     }
     m.material.map = this.spotTexture(v);
     m.material.needsUpdate = true;
+    m.material.opacity = 1;
     m.visible = true;
+    glow.visible = v >= 2;
+    if (v >= 2) glow.material.color.set(this.spotTier(v).glow);
     if (v !== prev) {
-      this.tween(320, (u) => m.scale.setScalar(1 + 0.45 * Math.sin(u * Math.PI) * (1 - u * 0.4)));
-      if (v >= 2) this.flash(m.position, v >= 64 ? '#ffffff' : '#ffc53a', 1.2 + Math.log2(v) * 0.15);
+      this.tween(360, (u) => m.scale.setScalar(1 + 0.5 * Math.sin(u * Math.PI) * (1 - u * 0.4)));
+      if (v >= 2) {
+        const col = this.spotTier(v).glow;
+        this.flash(m.position, col, 1.2 + Math.log2(v) * 0.18);
+        this.burst(m.position, col, 6 + Math.log2(v) * 2, 0.7);
+      }
     }
   }
   resetSpots() {
     for (const col of this.spots) for (const m of col) {
       if (!m.visible) continue;
-      const start = m.material.opacity;
+      const glow = m.userData.glow;
+      glow.visible = false;
       this.tween(300, (u) => {
-        m.material.opacity = start * (1 - u);
+        m.material.opacity = 1 - u;
         if (u >= 1) {
           m.visible = false;
           m.userData.v = 0;
           m.material.opacity = 1;
         }
       });
+    }
+  }
+  pulseSpots(t) {
+    for (const col of this.spots) for (const m of col) {
+      const { v, glow, ph } = m.userData;
+      if (!glow.visible) continue;
+      const k = Math.min(1, 0.35 + Math.log2(v) / 10);
+      const s = 0.5 + 0.5 * Math.sin(t * (2.5 + Math.log2(v) * 0.4) + ph);
+      glow.material.opacity = k * (0.45 + 0.55 * s);
+      glow.scale.setScalar(0.95 + 0.25 * s * k);
     }
   }
   // the multiplier-spot labels sit at the top of the tile, so they stay readable behind symbols
@@ -727,6 +894,18 @@ export class DragonRush3D {
       this.sparks.setColorAt(k, Math.random() < 0.25 ? white : col);
     }
     this.sparks.instanceColor.needsUpdate = true;
+  }
+  // 🎆 bursts all around the gate
+  fireworks(n = 10) {
+    const colors = ['#ffd23f', '#ff3d6a', '#3dff8a', '#5ab4ff', '#ffffff', '#ff8a1a', '#c77dff'];
+    for (let i = 0; i < n; i++) {
+      this.tween(1, () => {}, i * 140 + Math.random() * 120).then(() => {
+        const p = new THREE.Vector3((Math.random() - 0.5) * 13, -1 + Math.random() * 7, 0.8);
+        const col = colors[(Math.random() * colors.length) | 0];
+        this.burst(p, col, 34, 1.7);
+        this.flash(p, col, 3.2);
+      });
+    }
   }
   flash(pos, color = '#ffffff', size = 1.6) {
     const m = this.flashes[this.flashNext++ % this.flashes.length];
@@ -800,7 +979,7 @@ export class DragonRush3D {
     this.cells = Array.from({ length: COLS }, () => Array(ROWS).fill(null));
     return Promise.all(ps);
   }
-  dropIn(grid, onLand) {
+  dropIn(grid, onLand, onEach) {
     const ps = [];
     grid.forEach((col, c) =>
       col.forEach((id, r) => {
@@ -811,6 +990,7 @@ export class DragonRush3D {
         this.cells[c][r] = o;
         const p = this.tween(380 / this.speed, (u) => this.fall(o, y0, y1, u), (c * 75 + (ROWS - 1 - r) * 30) / this.speed);
         if (r === ROWS - 1) p.then(() => onLand?.(c));
+        if (onEach) p.then(() => onEach(c, r, id));
         ps.push(p);
       }),
     );
@@ -985,7 +1165,7 @@ export class DragonRush3D {
     p.sy += (p.y - p.sy) * 0.04;
     this.shake *= 0.9;
     const sh = this.shake;
-    this.camera.position.set(p.sx * 1.2 + (Math.random() - 0.5) * sh, FIT.cy - p.sy * 0.7 + (Math.random() - 0.5) * sh, this.dist);
+    this.camera.position.set(FIT.cx + p.sx * 1.2 + (Math.random() - 0.5) * sh, FIT.cy - p.sy * 0.7 + (Math.random() - 0.5) * sh, this.dist);
     this.camera.lookAt(this.target.x + p.sx * 0.3, this.target.y, 0);
 
     // idle symbol life
@@ -1030,6 +1210,8 @@ export class DragonRush3D {
     }
     this.dust.rotation.y = Math.sin(t * 0.05) * 0.1;
     this.updateDragon(dt);
+    this.updateLever(dt, t);
+    this.pulseSpots(t);
 
     this.renderer.render(this.scene, this.camera);
   }

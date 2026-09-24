@@ -77,6 +77,12 @@
       <button class="close" id="closeModal" aria-label="Close">×</button>
       <h2>Add funds</h2>
 
+      <div class="pay-tabs" role="tablist" aria-label="Payment method">
+        <button type="button" class="pay-tab active" role="tab" aria-selected="true" data-pay="card">💳 Card</button>
+        <button type="button" class="pay-tab" role="tab" aria-selected="false" data-pay="swish">📱 Swish <small>(fake)</small></button>
+      </div>
+
+      <div class="pay-pane" data-pane="card">
       <div class="notice">
         <strong>This is a fake payment form.</strong> Nothing is charged, stored or sent anywhere.
         Please don't type a real card — use <code>4242 4242 4242 4242</code>.
@@ -120,6 +126,36 @@
         <button type="submit" class="btn gold wide full" id="payBtn">Deposit $500</button>
         <p class="tiny full">Tip: <code>4000 0000 0000 0002</code> always gets declined.</p>
       </form>
+      </div>
+
+      <div class="pay-pane" data-pane="swish" hidden>
+        <div class="notice">
+          <strong>This is a fake Swish.</strong> No app opens, no phone number is needed and no real money moves.
+          You just approve on a pretend phone.
+        </div>
+        <div class="swish-pick" id="swishPick">
+          <div class="field full">Amount
+            <div class="amounts amounts-4">
+              <button type="button" class="amount-opt" data-amount="100">$100</button>
+              <button type="button" class="amount-opt" data-amount="500">$500</button>
+              <button type="button" class="amount-opt" data-amount="1000">$1,000</button>
+              <button type="button" class="amount-opt" data-amount="5000">$5,000</button>
+            </div>
+          </div>
+          <button type="button" class="btn swish-go wide" id="swishBtn">📱 Swish $500</button>
+        </div>
+        <div class="swish-phone" id="swishPhone" hidden>
+          <div class="sp-notch"></div>
+          <div class="sp-screen">
+            <div class="sp-app">📱 Swish <small>(not really)</small></div>
+            <div class="sp-to">Pay to<br><b>SUPER JACKPOT ROULETTE</b></div>
+            <div class="sp-amt" id="swishAmt">$500</div>
+            <div class="sp-msg">Message: “definitely a good idea”</div>
+            <button type="button" class="sp-approve" id="swishApprove">Approve with Pretend-ID™</button>
+            <div class="sp-wait" id="swishWait" hidden><div class="spinner"></div>Scanning your imaginary fingerprint…</div>
+          </div>
+        </div>
+      </div>
 
       <div class="state" id="processing" hidden>
         <div class="spinner"></div>
