@@ -18,10 +18,13 @@
 
 * { box-sizing: border-box; }
 
-html, body { margin: 0; height: 100%; }
-/* keep the scrollbar's space even when the page can't scroll (the slots room locks it),
-   so walking between rooms never shifts the layout sideways */
-html { scrollbar-gutter: stable; }
+/* Scrollbars must never bounce. <html> does the scrolling and <body> clips, so nothing that
+   moves inside the page (screen shake, drunk sway, walking between rooms, anything later) can
+   grow the page. Because html isn't overflow: visible, body's overflow no longer controls the
+   viewport: scroll locks go on html (html:has(> body.in-slots) etc.).
+   The gutter stays reserved even when the page can't scroll, so locking never shifts layout. */
+html { margin: 0; height: 100%; overflow: auto; scrollbar-gutter: stable; }
+body { margin: 0; overflow: clip; }
 
 body {
   background: radial-gradient(ellipse at 50% 20%, #12301f 0%, var(--bg) 70%);
@@ -1740,7 +1743,7 @@ body.in-slots .to-slots, body.in-slots .ts-ding { display: none; }
 
 
 /* ---- the slots room: DRAGON RUSH WIN BIG ---- */
-body.in-slots { overflow: hidden; }
+html:has(> body.in-slots) { overflow: hidden; }
 .slots-view {
   position: absolute;
   inset: 0 0 auto 0;
@@ -2456,7 +2459,7 @@ body:is(.drunk-3, .drunk-4) .slots-view { --sway: 1.2deg; --room-sway: sway 3.5s
 }
 
 /* ---- the party ---- */
-body.vip-party-on { overflow: hidden; }
+html:has(> body.vip-party-on) { overflow: hidden; }
 .vip-party {
   --beat: 0.48s;
   position: fixed;
@@ -3081,7 +3084,7 @@ body.vip-party-on { overflow: hidden; }
 .tab-chip.banned { background: #2a0a0e; color: #ff9ab8; box-shadow: inset 0 0 0 1px #b3122a, 0 6px 14px rgba(0, 0, 0, 0.45); }
 .tab-chip.banned b { color: #fff; }
 
-body.kitchen-on { overflow: hidden; }
+html:has(> body.kitchen-on) { overflow: hidden; }
 .kitchen {
   position: fixed;
   inset: 0;
@@ -3274,7 +3277,7 @@ body.kitchen-on { overflow: hidden; }
 .dave-text.seen .dt-foot { color: #1a73e8; }
 
 /* the morning after */
-body.hangover-on { overflow: hidden; }
+html:has(> body.hangover-on) { overflow: hidden; }
 .hangover {
   position: fixed;
   inset: 0;
