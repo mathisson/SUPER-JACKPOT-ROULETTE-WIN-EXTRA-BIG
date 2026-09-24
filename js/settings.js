@@ -147,7 +147,10 @@ export function createSettings({ button, store, sound, toast, getBalance, spend,
       <h4>Hair colour</h4>${swatches('hairColor', BASE.hairColor)}
       <h4>Facial hair</h4>${chips('facial', BASE.facial)}
       <h4>Expression</h4>${chips('face', BASE.face)}
-      <h4>T-shirt colour ${look.top !== 'tshirt' ? '<small>(wear the T-shirt to see it)</small>' : ''}</h4>${swatches('shirt', BASE.shirt)}
+      <h4>Build</h4>${chips('build', BASE.build)}
+      <h4>T-shirt colour ${!['tshirt', 'tank'].includes(look.top) ? '<small>(wear the T-shirt or tank top to see it)</small>' : ''}</h4>${swatches('shirt', BASE.shirt)}
+      <h4>Pants colour ${['tux', 'goldsuit', 'sequin', 'tracksuit', 'bathrobe'].includes(look.top) ? '<small>(this outfit comes with its own)</small>' : ''}</h4>${swatches('pants', BASE.pants)}
+      <h4>Shoes ${['tux', 'bathrobe'].includes(look.top) ? '<small>(this outfit comes with its own)</small>' : ''}</h4>${swatches('shoes', BASE.shoes)}
       <div class="st-sep">Your stuff</div>
       ${SLOTS.map(slotRow).join('')}`;
   }

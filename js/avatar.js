@@ -17,6 +17,8 @@ export const BASE = {
     ['afro', 'Afro'],
     ['mohawk', 'Mohawk'],
     ['bun', 'Bun'],
+    ['ponytail', 'Ponytail'],
+    ['buzz', 'Buzz cut'],
   ],
   hairColor: ['#1c120c', '#6b4423', '#b5651d', '#e8c46a', '#d9d9d9', '#c0182a', '#2de0ff'],
   facial: [
@@ -24,6 +26,7 @@ export const BASE = {
     ['stubble', 'Stubble'],
     ['mustache', 'Mustache'],
     ['beard', 'Beard'],
+    ['goatee', 'Goatee'],
   ],
   face: [
     ['grin', '😁 Grin'],
@@ -32,6 +35,13 @@ export const BASE = {
     ['cool', '😌 Cool'],
   ],
   shirt: ['#dce8f6', '#1f1f24', '#c0182a', '#2e8b3e', '#2d5aa8', '#ff9ad0'],
+  build: [
+    ['slim', 'Slim'],
+    ['regular', 'Regular'],
+    ['big', 'Big'],
+  ],
+  pants: ['#2f4a78', '#1f1f24', '#7a5a3a', '#c9b28a', '#8b1c2c', '#2e6b3e'],
+  shoes: ['#f4f4f4', '#0a0a0a', '#8a5a2b', '#c0182a', '#e8c35a'],
 };
 
 // ---------- the store ----------
@@ -60,12 +70,45 @@ export const CATALOG = [
   { id: 'lei', slot: 'neck', name: 'Flower Lei', emoji: '🌸', price: 60 },
   { id: 'bowtie', slot: 'neck', name: 'Bow Tie', emoji: '🎀', price: 80 },
   { id: 'chain', slot: 'neck', name: 'Gold Chain', emoji: '⛓️', price: 1000 },
+
+  { id: 'tank', slot: 'top', name: 'Tank Top', emoji: '🎽', price: 60, note: 'In your T-shirt colour. Gun show.' },
+  { id: 'bathrobe', slot: 'top', name: 'Hotel Bathrobe', emoji: '🛁', price: 180, note: 'Borrowed from the hotel room. Forever.' },
+  { id: 'hoodie', slot: 'top', name: 'Hoodie', emoji: '🧥', price: 350 },
+  { id: 'tracksuit', slot: 'top', name: 'Tracksuit', emoji: '🏃', price: 450 },
+  { id: 'leather', slot: 'top', name: 'Leather Jacket', emoji: '🧥', price: 900, note: 'Cooler than the waiter.' },
+
+  { id: 'beanie', slot: 'hat', name: 'Beanie', emoji: '🧶', price: 80 },
+  { id: 'sombrero', slot: 'hat', name: 'Sombrero', emoji: '👒', price: 350 },
+  { id: 'viking', slot: 'hat', name: 'Viking Helmet', emoji: '⚔️', price: 600 },
+  { id: 'halo', slot: 'hat', name: 'Halo', emoji: '😇', price: 2000, note: 'For the saints of the roulette table.' },
+
+  { id: 'threed', slot: 'glasses', name: '3D Glasses', emoji: '🎬', price: 90, note: 'For watching the wheel in 3D. It already is.' },
+  { id: 'stars', slot: 'glasses', name: 'Star Glasses', emoji: '🤩', price: 350 },
+
+  { id: 'medal', slot: 'neck', name: 'Participation Medal', emoji: '🏅', price: 5, note: 'For taking part.' },
+  { id: 'necktie', slot: 'neck', name: 'Necktie', emoji: '👔', price: 70, note: 'Worn around the neck, unlike some people.' },
+  { id: 'scarf', slot: 'neck', name: 'Scarf', emoji: '🧣', price: 120 },
+
+  { id: 'beer', slot: 'held', name: 'Beer Mug', emoji: '🍺', price: 30, note: "Dave's spare." },
+  { id: 'martini', slot: 'held', name: 'Martini', emoji: '🍸', price: 40, note: 'Shaken. Stirred. Carried.' },
+  { id: 'rose', slot: 'held', name: 'Rose', emoji: '🌹', price: 60 },
+  { id: 'chicken', slot: 'held', name: 'Rubber Chicken', emoji: '🐔', price: 99, note: 'Squeaks. Pays the same.' },
+  { id: 'dice', slot: 'held', name: 'Lucky Dice', emoji: '🎲', price: 150, note: 'Luck not included.' },
+  { id: 'moneybag', slot: 'held', name: 'Money Bag', emoji: '💰', price: 300, note: 'Contains $300. It was the $300 you paid.' },
+  { id: 'mic', slot: 'held', name: 'Gold Microphone', emoji: '🎤', price: 700 },
+  { id: 'sparkler', slot: 'held', name: 'Sparkler Bottle', emoji: '🍾', price: 1200, note: 'The bottle-girl special.' },
+
+  { id: 'backpack', slot: 'back', name: 'GrubGrab Backpack', emoji: '🎒', price: 250, note: 'Straight off Marco. He knows.' },
+  { id: 'cape', slot: 'back', name: 'Superhero Cape', emoji: '🦸', price: 900 },
+  { id: 'wings', slot: 'back', name: 'Angel Wings', emoji: '🪽', price: 1500 },
 ];
 export const SLOTS = [
   ['top', '👕 Outfit'],
   ['hat', '🎩 Hat'],
   ['glasses', '😎 Glasses'],
   ['neck', '⛓️ Neck'],
+  ['held', '✋ In hand'],
+  ['back', '🦸 Back'],
 ];
 
 export const DEFAULT_LOOK = {
@@ -79,6 +122,11 @@ export const DEFAULT_LOOK = {
   hat: null,
   glasses: null,
   neck: null,
+  build: 'regular',
+  pants: '#2f4a78',
+  shoes: '#f4f4f4',
+  held: null,
+  back: null,
 };
 
 // ---------- the model (same build as Dave: root at the waist, feet on the floor at -1.46) ----------
@@ -148,6 +196,24 @@ function topMaterial(look) {
       });
     case 'goldsuit':
       return new THREE.MeshStandardMaterial({ color: 0xe8c35a, metalness: 1, roughness: 0.22 });
+    case 'bathrobe':
+      return new THREE.MeshStandardMaterial({
+        roughness: 1,
+        map: patternTexture((x, n) => {
+          x.fillStyle = '#f7f5ef';
+          x.fillRect(0, 0, n, n);
+          for (let i = 0; i < 900; i++) {
+            x.fillStyle = `rgba(180,170,150,${Math.random() * 0.25})`;
+            x.fillRect(Math.random() * n, Math.random() * n, 2, 2);
+          }
+        }),
+      });
+    case 'hoodie':
+      return mat(0x6b5b95, { roughness: 0.9 });
+    case 'tracksuit':
+      return mat(0xc0182a, { roughness: 0.55 });
+    case 'leather':
+      return mat(0x1a1a1c, { roughness: 0.32, metalness: 0.15 });
     default:
       return mat(look.shirt);
   }
@@ -194,6 +260,20 @@ function buildHair(look, head) {
         fin.rotation.x = -0.4 + i * 0.16;
       }
       break;
+    case 'ponytail': {
+      add(new THREE.Mesh(new THREE.SphereGeometry(0.445, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.48), m)).rotation.x = -0.25;
+      const tie = add(new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.025, 6, 12), mat(0xc0182a)));
+      tie.position.set(0, 0.12, -0.44);
+      const tail = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.5, 4, 8), m));
+      tail.position.set(0, -0.18, -0.5);
+      tail.rotation.x = 0.25;
+      break;
+    }
+    case 'buzz': {
+      const shell = add(new THREE.Mesh(new THREE.SphereGeometry(0.43, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.5), new THREE.MeshStandardMaterial({ color: look.hairColor, roughness: 1, transparent: true, opacity: 0.75 })));
+      shell.rotation.x = -0.3;
+      break;
+    }
     case 'bun': {
       add(new THREE.Mesh(new THREE.SphereGeometry(0.445, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.48), m)).rotation.x = -0.25;
       add(new THREE.Mesh(new THREE.SphereGeometry(0.17, 14, 10), m)).position.set(0, 0.5, -0.16);
@@ -281,6 +361,14 @@ function buildFacialHair(look, head) {
       curl.rotation.set(0, 0, side > 0 ? Math.PI * 1.1 : -Math.PI * 0.4);
       head.add(curl);
     }
+  } else if (look.facial === 'goatee') {
+    const chin = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 10), m);
+    chin.scale.set(1, 1.3, 0.7);
+    chin.position.set(0, -0.3, 0.33);
+    head.add(chin);
+    const stache = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.04, 0.04), m);
+    stache.position.set(0, -0.08, 0.41);
+    head.add(stache);
   } else if (look.facial === 'beard') {
     const beard = new THREE.Mesh(new THREE.SphereGeometry(0.44, 24, 14, 0, Math.PI * 2, Math.PI * 0.55, Math.PI * 0.4), m);
     beard.scale.set(1, 1.05, 1.02);
@@ -346,7 +434,9 @@ function buildHat(id, head) {
         puff.position.set(Math.cos(a) * 0.2, 0.35, Math.sin(a) * 0.2);
         g.add(puff);
       }
-      g.add(Object.assign(new THREE.Mesh(new THREE.SphereGeometry(0.26, 14, 10), white), { position: new THREE.Vector3(0, 0.45, 0) }));
+      const top = new THREE.Mesh(new THREE.SphereGeometry(0.26, 14, 10), white);
+      top.position.set(0, 0.45, 0); // (position is read-only: set it, never replace it)
+      g.add(top);
       break;
     }
     case 'cowboy': {
@@ -388,6 +478,60 @@ function buildHat(id, head) {
         tail.rotation.z = rz;
         g.add(tail);
       }
+      break;
+    }
+    case 'beanie': {
+      const knit = mat(0x2e8b3e, { roughness: 1 });
+      const dome = new THREE.Mesh(new THREE.SphereGeometry(0.455, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.5), knit);
+      dome.position.y = -0.14;
+      g.add(dome);
+      const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.14, 24, 1, true), mat(0x236b30, { roughness: 1 }));
+      cuff.position.y = -0.12;
+      g.add(cuff);
+      const pom = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), mat(0xffffff, { roughness: 1 }));
+      pom.position.y = 0.34;
+      g.add(pom);
+      break;
+    }
+    case 'sombrero': {
+      const straw = mat(0xd9b25a, { roughness: 0.9 });
+      const brim = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.05, 0.05, 36), straw);
+      g.add(brim);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(1.05, 0.06, 8, 36), straw);
+      rim.rotation.x = Math.PI / 2;
+      rim.position.y = 0.05;
+      g.add(rim);
+      const crown = new THREE.Mesh(new THREE.ConeGeometry(0.36, 0.6, 24), straw);
+      crown.position.y = 0.3;
+      g.add(crown);
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.34, 0.08, 24, 1, true), mat(0xc0182a));
+      band.position.y = 0.08;
+      g.add(band);
+      break;
+    }
+    case 'viking': {
+      const steel = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, metalness: 0.9, roughness: 0.35 });
+      const helm = new THREE.Mesh(new THREE.SphereGeometry(0.46, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.5), steel);
+      helm.position.y = -0.12;
+      g.add(helm);
+      const bone = mat(0xf2ead8, { roughness: 0.6 });
+      for (const side of [-1, 1]) {
+        const horn = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.5, 12), bone);
+        horn.position.set(side * 0.48, 0.12, 0);
+        horn.rotation.z = -side * 0.9;
+        g.add(horn);
+      }
+      const ridge = new THREE.Mesh(new THREE.TorusGeometry(0.46, 0.03, 6, 32), steel);
+      ridge.rotation.x = Math.PI / 2;
+      ridge.position.y = -0.12;
+      g.add(ridge);
+      break;
+    }
+    case 'halo': {
+      const halo = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.04, 10, 40), new THREE.MeshStandardMaterial({ color: 0xffe9a8, emissive: 0xffd24a, emissiveIntensity: 1.4, metalness: 0.5, roughness: 0.3 }));
+      halo.rotation.x = Math.PI / 2;
+      halo.position.y = 0.35;
+      g.add(halo);
       break;
     }
     case 'crown': {
@@ -437,6 +581,31 @@ function buildGlasses(id, head) {
     const frame = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.2, 0.01), new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.15 }));
     frame.position.set(0, 0, -0.01);
     g.add(frame);
+  } else if (id === 'threed') {
+    const frame = mat(0xffffff, { roughness: 0.6 });
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.2, 0.03), frame);
+    g.add(bar);
+    [[-0.15, 0xff2a2a], [0.15, 0x2a6bff]].forEach(([x, c]) => {
+      const lens = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.13, 0.02), mat(c, { transparent: true, opacity: 0.85, roughness: 0.2 }));
+      lens.position.set(x, 0, 0.02);
+      g.add(lens);
+    });
+  } else if (id === 'stars') {
+    const star = new THREE.Shape();
+    for (let i = 0; i < 10; i++) {
+      const r = i % 2 ? 0.055 : 0.13;
+      const a = (i / 10) * Math.PI * 2 + Math.PI / 2;
+      i ? star.lineTo(Math.cos(a) * r, Math.sin(a) * r) : star.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+    }
+    const geo = new THREE.ExtrudeGeometry(star, { depth: 0.03, bevelEnabled: false });
+    const m = new THREE.MeshStandardMaterial({ color: 0xff5fa2, metalness: 0.6, roughness: 0.25 });
+    for (const x of [-0.16, 0.16]) {
+      const lens = new THREE.Mesh(geo, m);
+      lens.position.x = x;
+      g.add(lens);
+    }
+    const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.02, 0.02), gold);
+    g.add(bridge);
   } else if (id === 'monocle') {
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.018, 8, 24), gold);
     ring.position.x = 0.15;
@@ -481,7 +650,41 @@ function buildNeck(id, body) {
       wing.position.set(side * 0.09, 0, 0.36);
       g.add(wing);
     }
-    g.add(Object.assign(new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), red), { position: new THREE.Vector3(0, 0, 0.38) }));
+    const knot = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), red);
+    knot.position.set(0, 0, 0.38);
+    g.add(knot);
+  } else if (id === 'medal') {
+    const ribbon = mat(0x2d5aa8, { roughness: 0.7 });
+    for (const side of [-1, 1]) {
+      const strap = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.4, 0.02), ribbon);
+      strap.position.set(side * 0.1, -0.2, 0.34);
+      strap.rotation.z = side * 0.35;
+      g.add(strap);
+    }
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.025, 20), new THREE.MeshStandardMaterial({ color: 0xb08d57, metalness: 0.8, roughness: 0.4 }));
+    disc.rotation.x = Math.PI / 2;
+    disc.position.set(0, -0.43, 0.37);
+    g.add(disc);
+  } else if (id === 'necktie') {
+    const silk = mat(0x2d5aa8, { roughness: 0.4 });
+    const knot = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.09, 0.06), silk);
+    knot.position.set(0, 0, 0.38);
+    g.add(knot);
+    const blade = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.6, 4), silk);
+    blade.rotation.set(Math.PI, Math.PI / 4, 0);
+    blade.scale.z = 0.3;
+    blade.position.set(0, -0.36, 0.4);
+    g.add(blade);
+  } else if (id === 'scarf') {
+    const wool = mat(0xc0182a, { roughness: 1 });
+    const wrap = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.1, 10, 24), wool);
+    wrap.rotation.x = Math.PI / 2;
+    wrap.position.y = 0.08;
+    g.add(wrap);
+    const end = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.55, 0.06), wool);
+    end.position.set(0.14, -0.22, 0.3);
+    end.rotation.z = 0.1;
+    g.add(end);
   } else if (id === 'lei') {
     const cols = [0xff5fa2, 0xffd23f, 0xff7a1a, 0xffffff, 0xb066ff];
     for (let i = 0; i < 18; i++) {
@@ -493,23 +696,218 @@ function buildNeck(id, body) {
   }
 }
 
+function buildHeld(id, arm) {
+  if (!id) return;
+  const g = new THREE.Group();
+  g.position.set(0, -1.05, 0.12);
+  arm.add(g);
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0xdff4ff, roughness: 0.05, transparent: true, opacity: 0.45 });
+  const gold = new THREE.MeshStandardMaterial({ color: 0xe8c35a, metalness: 1, roughness: 0.25 });
+  switch (id) {
+    case 'beer': {
+      const beer = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.13, 0.38, 16), new THREE.MeshStandardMaterial({ color: 0xffbe3c, roughness: 0.1, transparent: true, opacity: 0.85 }));
+      beer.position.y = -0.1;
+      g.add(beer);
+      const foam = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.09, 16), mat(0xffffff, { roughness: 0.9 }));
+      foam.position.y = 0.12;
+      g.add(foam);
+      break;
+    }
+    case 'martini': {
+      const bowl = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.18, 20, 1, true), glassMat);
+      bowl.rotation.x = Math.PI;
+      bowl.position.y = 0.2;
+      g.add(bowl);
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.24, 6), glassMat);
+      stem.position.y = 0;
+      g.add(stem);
+      const olive = new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 8), mat(0x6b8e23));
+      olive.position.set(0.03, 0.2, 0);
+      g.add(olive);
+      break;
+    }
+    case 'rose': {
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.5, 6), mat(0x2e7d32));
+      stem.position.y = 0.05;
+      g.add(stem);
+      const red = mat(0xc0182a, { roughness: 0.5 });
+      for (let i = 0; i < 5; i++) {
+        const petal = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), red);
+        const a = (i / 5) * Math.PI * 2;
+        petal.position.set(Math.cos(a) * 0.04, 0.32, Math.sin(a) * 0.04);
+        g.add(petal);
+      }
+      break;
+    }
+    case 'chicken': {
+      const yellow = mat(0xffd23f, { roughness: 0.35 });
+      const body = new THREE.Mesh(new THREE.SphereGeometry(0.13, 14, 10), yellow);
+      body.scale.set(1, 0.8, 1.3);
+      g.add(body);
+      const neck = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.22, 4, 8), yellow);
+      neck.position.set(0, 0.16, 0.12);
+      neck.rotation.x = 0.4;
+      g.add(neck);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 10), yellow);
+      head.position.set(0, 0.3, 0.17);
+      g.add(head);
+      const beak = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.08, 8), mat(0xff7a1a));
+      beak.rotation.x = Math.PI / 2;
+      beak.position.set(0, 0.29, 0.25);
+      g.add(beak);
+      const comb = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.06, 0.08), mat(0xe0142c));
+      comb.position.set(0, 0.38, 0.16);
+      g.add(comb);
+      break;
+    }
+    case 'dice': {
+      const white = mat(0xffffff, { roughness: 0.3 });
+      const pip = mat(0x111111);
+      [[-0.07, 0, 0.2], [0.08, 0.04, -0.3]].forEach(([x, y, r]) => {
+        const die = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.13, 0.13), white);
+        die.position.set(x, y, 0);
+        die.rotation.set(r, r * 1.5, r * 0.5);
+        for (const [px, py] of [[-0.03, 0.03], [0.03, -0.03], [0, 0]]) {
+          const d = new THREE.Mesh(new THREE.SphereGeometry(0.013, 6, 4), pip);
+          d.position.set(px, py, 0.066);
+          die.add(d);
+        }
+        g.add(die);
+      });
+      break;
+    }
+    case 'moneybag': {
+      const sack = new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 12), mat(0xc8a06a, { roughness: 0.9 }));
+      sack.scale.y = 0.9;
+      sack.position.y = -0.15;
+      g.add(sack);
+      const top = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.14, 10), sack.material);
+      top.position.y = 0.1;
+      g.add(top);
+      const c = document.createElement('canvas');
+      c.width = c.height = 64;
+      const x = c.getContext('2d');
+      x.fillStyle = '#1f7a3a';
+      x.font = 'bold 50px Arial, sans-serif';
+      x.textAlign = 'center';
+      x.textBaseline = 'middle';
+      x.fillText('$', 32, 34);
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      const label = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.2), new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
+      label.position.set(0, -0.15, 0.215);
+      g.add(label);
+      break;
+    }
+    case 'mic': {
+      const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.03, 0.34, 12), gold);
+      g.add(handle);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.08, 14, 10), new THREE.MeshStandardMaterial({ color: 0xd9d9d9, metalness: 0.9, roughness: 0.4, wireframe: false }));
+      head.position.y = 0.21;
+      g.add(head);
+      break;
+    }
+    case 'sparkler': {
+      const bottle = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 0.4, 14), new THREE.MeshStandardMaterial({ color: 0xe8c35a, metalness: 0.7, roughness: 0.3 }));
+      bottle.position.y = 0.05;
+      g.add(bottle);
+      const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.16, 10), bottle.material);
+      neck.position.y = 0.32;
+      g.add(neck);
+      const spark = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), new THREE.MeshBasicMaterial({ color: 0xfff3b0 }));
+      spark.position.y = 0.48;
+      g.add(spark);
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        const ray = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.16, 0.012), new THREE.MeshBasicMaterial({ color: 0xffd24a }));
+        ray.position.set(Math.cos(a) * 0.09, 0.48 + Math.sin(a) * 0.09, 0);
+        ray.rotation.z = a - Math.PI / 2;
+        g.add(ray);
+      }
+      break;
+    }
+  }
+}
+
+function buildBack(id, body) {
+  if (!id) return;
+  const g = new THREE.Group();
+  body.add(g);
+  if (id === 'backpack') {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const x = c.getContext('2d');
+    x.fillStyle = '#1aa37a';
+    x.fillRect(0, 0, 128, 128);
+    x.fillStyle = '#fff';
+    x.font = 'bold 48px Arial, sans-serif';
+    x.textAlign = 'center';
+    x.fillText('GG', 64, 78);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const green = mat(0x1aa37a, { roughness: 0.6 });
+    const branded = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6 });
+    const bag = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.85, 0.5), [branded, branded, green, green, green, branded]);
+    bag.position.set(0, 0.9, -0.58);
+    g.add(bag);
+  } else if (id === 'cape') {
+    const red = new THREE.MeshStandardMaterial({ color: 0xc0182a, roughness: 0.6, side: THREE.DoubleSide });
+    const geo = new THREE.PlaneGeometry(1.1, 1.9, 1, 12);
+    const pos = geo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const y = pos.getY(i);
+      pos.setX(i, pos.getX(i) * (1 + (0.95 - y) * 0.3)); // flares out towards the bottom
+      pos.setZ(i, -Math.pow(0.95 - y, 2) * 0.12);
+    }
+    geo.computeVertexNormals();
+    const cape = new THREE.Mesh(geo, red);
+    cape.position.set(0, 0.5, -0.45);
+    g.add(cape);
+    for (const side of [-1, 1]) {
+      const clasp = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), new THREE.MeshStandardMaterial({ color: 0xe8c35a, metalness: 1, roughness: 0.25 }));
+      clasp.position.set(side * 0.35, 1.42, 0.25);
+      g.add(clasp);
+    }
+  } else if (id === 'wings') {
+    const feather = mat(0xffffff, { roughness: 0.7 });
+    for (const side of [-1, 1]) {
+      const wing = new THREE.Group();
+      wing.position.set(side * 0.2, 1.1, -0.45);
+      wing.rotation.set(0, side * 0.5, side * -0.35);
+      for (let i = 0; i < 4; i++) {
+        const f = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 8), feather);
+        f.scale.set(2.4 - i * 0.35, 0.55, 0.15);
+        f.position.set(side * (0.42 + i * 0.05), 0.18 - i * 0.2, 0);
+        f.rotation.z = side * (0.35 + i * 0.12);
+        wing.add(f);
+      }
+      g.add(wing);
+    }
+  }
+}
+
 /**
  * Build your character. Same skeleton as Dave: { root, body, head, armL, armR, legs }.
  * The root sits at the waist; feet are 1.46 below it (times the scale).
  */
 export function buildAvatar(look = DEFAULT_LOOK) {
+  look = { ...DEFAULT_LOOK, ...look }; // older saves (and couriers) may not have every field
   const skin = mat(look.skin, { roughness: 0.65 });
   const top = topMaterial(look);
-  const pantsCol = { tux: 0x16161a, goldsuit: 0xe8c35a, sequin: 0x241034 }[look.top] ?? 0x2f4a78;
-  const pants = look.top === 'goldsuit' ? new THREE.MeshStandardMaterial({ color: pantsCol, metalness: 1, roughness: 0.25 }) : mat(pantsCol, { roughness: 0.8 });
-  const shoe = mat(look.top === 'tux' ? 0x0a0a0a : 0xf4f4f4, { roughness: 0.5 });
+  // some outfits come with their own trousers (and the bathrobe comes with none)
+  const pantsCol = { tux: 0x16161a, goldsuit: 0xe8c35a, sequin: 0x241034, tracksuit: 0xc0182a }[look.top] ?? look.pants;
+  const pants =
+    look.top === 'bathrobe' ? skin : look.top === 'goldsuit' ? new THREE.MeshStandardMaterial({ color: pantsCol, metalness: 1, roughness: 0.25 }) : mat(pantsCol, { roughness: 0.8 });
+  const shoe = mat(look.top === 'tux' ? 0x0a0a0a : look.top === 'bathrobe' ? 0xffffff : look.shoes, { roughness: look.top === 'bathrobe' ? 1 : 0.5 });
+  const sleeves = look.top === 'tank' ? skin : top;
+  const [bx, bz] = { slim: [0.84, 0.82], regular: [1, 1], big: [1.28, 1.14] }[look.build] || [1, 1];
 
   const root = new THREE.Group();
   const body = new THREE.Group();
   root.add(body);
   const legs = [-0.24, 0.24].map((x) => {
     const g = new THREE.Group();
-    g.position.x = x;
+    g.position.x = x * (bx > 1 ? 1.12 : 1);
     const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.15, 1.45, 12), pants);
     leg.position.y = -0.72;
     g.add(leg);
@@ -521,7 +919,7 @@ export function buildAvatar(look = DEFAULT_LOOK) {
   });
 
   const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.52, 0.8, 6, 16), top);
-  torso.scale.set(1, 1, 0.78);
+  torso.scale.set(bx, 1, 0.78 * bz);
   torso.position.y = 0.72;
   body.add(torso);
   if (look.top === 'tux' || look.top === 'goldsuit' || look.top === 'sequin') {
@@ -545,6 +943,56 @@ export function buildAvatar(look = DEFAULT_LOOK) {
     collar.rotation.x = Math.PI / 2 + 0.3;
     collar.position.set(0, 1.45, 0.05);
     body.add(collar);
+  } else if (look.top === 'bathrobe') {
+    // a V of chest, a belt, and a robe down to the knees
+    const v = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.55, 3), skin);
+    v.rotation.x = Math.PI;
+    v.scale.z = 0.3;
+    v.position.set(0, 1.2, 0.36 * bz);
+    body.add(v);
+    const belt = new THREE.Mesh(new THREE.TorusGeometry(0.5 * bx, 0.05, 8, 24), mat(0xe8dcc0, { roughness: 1 }));
+    belt.rotation.x = Math.PI / 2;
+    belt.scale.y = 0.8 * bz;
+    belt.position.y = 0.3;
+    body.add(belt);
+    const skirt = new THREE.Mesh(new THREE.CylinderGeometry(0.52 * bx, 0.6 * bx, 0.8, 20, 1, true), top);
+    skirt.material = top.clone();
+    skirt.material.side = THREE.DoubleSide;
+    skirt.scale.z = 0.85 * bz;
+    skirt.position.y = -0.15;
+    body.add(skirt);
+  } else if (look.top === 'hoodie') {
+    const hood = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.13, 10, 20), top);
+    hood.position.set(0, 1.5, -0.2);
+    hood.rotation.x = 1.1;
+    body.add(hood);
+    const pocket = new THREE.Mesh(new THREE.BoxGeometry(0.55 * bx, 0.22, 0.06), mat(0x5a4c80, { roughness: 0.9 }));
+    pocket.position.set(0, 0.45, 0.4 * bz);
+    body.add(pocket);
+    for (const side of [-1, 1]) {
+      const string = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.3, 6), mat(0xffffff));
+      string.position.set(side * 0.08, 1.22, 0.4 * bz);
+      body.add(string);
+    }
+  } else if (look.top === 'leather') {
+    for (const side of [-1, 1]) {
+      const lapel = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.32, 0.05), top);
+      lapel.position.set(side * 0.16, 1.32, 0.34 * bz);
+      lapel.rotation.set(0.2, 0, side * -0.4);
+      body.add(lapel);
+    }
+    const zip = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.9, 0.02), new THREE.MeshStandardMaterial({ color: 0xcfd4d8, metalness: 1, roughness: 0.3 }));
+    zip.position.set(0.05, 0.75, 0.41 * bz);
+    body.add(zip);
+  } else if (look.top === 'tracksuit') {
+    const zip = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.9, 0.02), mat(0xffffff));
+    zip.position.set(0, 0.75, 0.41 * bz);
+    body.add(zip);
+    for (const leg of legs) {
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.03, 1.3, 0.03), mat(0xffffff));
+      stripe.position.set(leg.position.x > 0 ? 0.16 : -0.16, -0.72, 0);
+      leg.add(stripe);
+    }
   }
   const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.17, 0.25, 12), skin);
   neck.position.y = 1.55;
@@ -552,13 +1000,18 @@ export function buildAvatar(look = DEFAULT_LOOK) {
 
   const arm = (side) => {
     const g = new THREE.Group();
-    g.position.set(side * 0.62, 1.3, 0);
-    const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.14, 0.75, 4, 10), top);
+    g.position.set(side * (0.1 + 0.52 * bx), 1.3, 0);
+    const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.14, 0.75, 4, 10), sleeves);
     upper.position.y = -0.45;
     g.add(upper);
     const hand = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 10), skin);
     hand.position.y = -0.95;
     g.add(hand);
+    if (look.top === 'tracksuit') {
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.85, 0.03), mat(0xffffff));
+      stripe.position.set(side * 0.14, -0.45, 0);
+      g.add(stripe);
+    }
     body.add(g);
     return { g, hand };
   };
@@ -575,6 +1028,8 @@ export function buildAvatar(look = DEFAULT_LOOK) {
   buildHat(look.hat, head);
   buildGlasses(look.glasses, head);
   buildNeck(look.neck, body);
+  buildHeld(look.held, armL.g); // left hand: the right one holds your phone in selfies
+  buildBack(look.back, body);
 
   root.traverse((o) => o.isMesh && (o.castShadow = true));
   return { root, body, head, armL, armR, legs };
@@ -653,6 +1108,7 @@ export class AvatarStage extends Stage3D {
     this.table = new THREE.Group();
     const disc = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.7, 0.2, 48), new THREE.MeshStandardMaterial({ color: 0x2a0d14, roughness: 0.4 }));
     disc.position.y = -1.2;
+    this.floorY = -1.1; // top of the disc: what the shoes stand on
     this.table.add(disc);
     const trim = new THREE.Mesh(new THREE.TorusGeometry(1.65, 0.05, 8, 64), new THREE.MeshStandardMaterial({ color: 0xe8c35a, metalness: 1, roughness: 0.25 }));
     trim.rotation.x = Math.PI / 2;
@@ -698,7 +1154,11 @@ export class AvatarStage extends Stage3D {
   setLook(look) {
     disposeAvatar(this.avatar);
     this.avatar = buildAvatar(look);
-    this.avatar.root.position.y = 0.18; // feet on the turntable
+    // stand exactly on the disc: measure how far below the waist the lowest point (the soles) is
+    this.avatar.root.position.y = 0;
+    this.avatar.root.updateMatrixWorld(true);
+    this.restY = this.floorY - new THREE.Box3().setFromObject(this.avatar.root).min.y;
+    this.avatar.root.position.y = this.restY;
     this.table.add(this.avatar.root);
     this.pop = 0.35; // a little hop when something changes
   }
@@ -709,7 +1169,7 @@ export class AvatarStage extends Stage3D {
     animateAvatar(this.avatar, t);
     if (this.pop > 0) {
       this.pop = Math.max(0, this.pop - dt);
-      this.avatar.root.position.y = 0.18 + Math.sin((1 - this.pop / 0.35) * Math.PI) * 0.25;
+      this.avatar.root.position.y = this.restY + Math.sin((1 - this.pop / 0.35) * Math.PI) * 0.25;
     }
     const p = this.sparkles.geometry.attributes.position;
     for (let i = 0; i < p.count; i++) {
