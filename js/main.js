@@ -207,6 +207,22 @@ Object.assign(BETS, {
   col2:   { label: '2 to 1',   covers: ALL.filter((n) => n % 3 === 2), pays: 2 },
   col3:   { label: '2 to 1',   covers: ALL.filter((n) => n % 3 === 0), pays: 2 },
 });
+// Inside bets on the lines. Board rows run 3-6-9… (top) to 1-4-7… (bottom),
+// so n's upper neighbour is n+1 and its right-hand neighbour is n+3.
+const split = (a, b) => (BETS[`s${a}-${b}`] = { label: `Split ${a}/${b}`, covers: [a, b], pays: 17 });
+for (let n = 1; n <= 36; n++) {
+  if (n <= 33) split(n, n + 3);
+  if (n % 3 !== 0) split(n, n + 1);
+  if (n % 3 !== 0 && n <= 33) {
+    BETS['c' + n] = { label: `Corner ${n}/${n + 1}/${n + 3}/${n + 4}`, covers: [n, n + 1, n + 3, n + 4], pays: 8 };
+  }
+}
+[1, 2, 3].forEach((n) => split(0, n));
+// Streets (a column of three) and six-lines (two neighbouring columns), keyed by their lowest number
+for (let n = 1; n <= 34; n += 3) {
+  BETS['st' + n] = { label: `Street ${n}–${n + 2}`, covers: range(n, n + 2), pays: 11 };
+  if (n <= 31) BETS['sl' + n] = { label: `Six line ${n}–${n + 5}`, covers: range(n, n + 5), pays: 5 };
+}
 
 // ---------- board ----------
 const board = $('board');
@@ -240,21 +256,43 @@ addCell('dozen3', '10 / 14', '4', 'outside');
 cells.red.querySelector('.label').innerHTML = '<i class="diamond red"></i>';
 cells.black.querySelector('.label').innerHTML = '<i class="diamond black"></i>';
 
+// Hotspots sitting on the lines of a number cell (right edge, top edge, top-right corner, left edge)
+function addHotspot(key, n, where) {
+  const el = document.createElement('span');
+  el.className = 'hot ' + where;
+  el.dataset.key = key;
+  el.innerHTML = '<span class="stack"></span>';
+  cells['n' + n].appendChild(el);
+  cells[key] = el;
+}
+for (let n = 1; n <= 36; n++) {
+  if (n <= 33) addHotspot(`s${n}-${n + 3}`, n, 'edge-r');
+  if (n % 3 !== 0) addHotspot(`s${n}-${n + 1}`, n, 'edge-t');
+  if (BETS['c' + n]) addHotspot('c' + n, n, 'corner');
+}
+[1, 2, 3].forEach((n) => addHotspot(`s0-${n}`, n, 'edge-l'));
+// Streets / six-lines sit on the bottom edge of the bottom row (1, 4, 7 …)
+for (let n = 1; n <= 34; n += 3) {
+  addHotspot('st' + n, n, 'edge-b');
+  if (BETS['sl' + n]) addHotspot('sl' + n, n, 'corner-b');
+}
+
+const betTarget = (e) => e.target.closest('[data-key]');
 board.addEventListener('click', (e) => {
-  const cell = e.target.closest('.cell');
-  if (cell) placeBet(cell.dataset.key);
+  const t = betTarget(e);
+  if (t) placeBet(t.dataset.key);
 });
 board.addEventListener('contextmenu', (e) => {
-  const cell = e.target.closest('.cell');
-  if (!cell) return;
+  const t = betTarget(e);
+  if (!t) return;
   e.preventDefault();
-  removeBet(cell.dataset.key);
+  removeBet(t.dataset.key);
 });
 board.addEventListener('mouseover', (e) => {
-  const cell = e.target.closest('.cell');
+  const t = betTarget(e);
   board.querySelectorAll('.covered').forEach((c) => c.classList.remove('covered'));
-  if (cell && cell.classList.contains('outside')) {
-    BETS[cell.dataset.key].covers.forEach((n) => cells['n' + n].classList.add('covered'));
+  if (t && BETS[t.dataset.key].covers.length > 1) {
+    BETS[t.dataset.key].covers.forEach((n) => cells['n' + n].classList.add('covered'));
   }
 });
 board.addEventListener('mouseleave', () =>

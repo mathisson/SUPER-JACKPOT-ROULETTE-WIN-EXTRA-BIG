@@ -4,7 +4,7 @@
     {
       "name": "roulette",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["server.js"],
+      "runtimeArgs": ["scripts/dev-server.js"],
       "port": 5173
     }
   ]
