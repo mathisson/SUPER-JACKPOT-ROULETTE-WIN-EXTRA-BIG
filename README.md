@@ -110,6 +110,22 @@ Your ears get drunk too: the more you drink, the more the music and every sound 
 
 You sober up slowly on your own. Or buy a 💧 **water for $5**. Drinks are free. Water is not. Welcome to Vegas.
 
+### 🍾 VIP BOTTLE SERVICE
+Tired of stealing drinks? Hit **🍾 Drinks** and a leather-bound **Club Jackpot** menu slides up and swings open like the real thing: parchment pages, dotted price leaders, a red ribbon bookmark. Order at the bar (a $8 Warm-ish Lager up to a $120 25-Year Whiskey) and it gets flung onto your drink stack, Tipsy-meter™ and all.
+
+Order a **big bottle** and it arrives in style:
+
+| Bottle | Price | Arrives with |
+|---|---|---|
+| 🍾 Bubbly Pete's Sparkling | $180 | the bartender, lobbing it at you |
+| 🍾 Moët & Chandelier | $2,500 | **2 bottle girls** with sparklers |
+| 🍾 Dom Pérignope | $10,000 | **4 bottle girls** |
+| 🍾 Ace of Spudz GOLD 15L | $50,000 | **the entire crew**, gold bottles, confetti storms |
+
+The gold bottle lets you **dress the crew**: 🪩 Sequin Classic (included), 👗 Satin Party Dress (+$5,000) or 👙 Beach Club Bikini (+$10,000).
+
+Before they walk in, a **DJ request slip** gets clipped to the menu: pick a club classic or **paste any YouTube link** (timestamps work). The lights drop, the disco ball spins, the girls parade in and **dance to your song** until it ends: one 8-beat routine, bottles pumping on every beat, everybody twirling on the 8. Every preset knows its tempo, the lobby band keeps its own time, and for anything else you can hit **🥁 Tap the beat** (or press `T`) to lock them to the music. Sometimes **Dave** shows up: tie round his head, beer in hand, dancing to a completely different song. The drunker you are, the more likely he is to come. Click him and he falls over. Hit **🙈 Back to the table** to keep the music going while you play, or **🛑 End party**, and the lead girl hands you the bottle on her way out.
+
 ### 📺 WATCH AN AD, GET $100
 Completely broke? At exactly **$0** with nothing on the table, a **Watch ad: +$100** button appears. Enjoy a message from our totally real sponsors: Hot Singles (they're dice), Waiter Academy™, Grandma's Cookies, Download More Money.biz and friends. It's "Ad 1 of 1"… until it becomes **Ad 2 of 1**. The skip button counts down, then refuses. After 15 seconds, claim your $100.
 
@@ -146,6 +162,7 @@ On narrow screens the table flips vertical: 0 on top, numbers running down the s
 - 🏆 **Leaderboard of Shame**, ranked by the biggest fake money lost in a single spin
 - 🐔 **Chicken mode**, where the ball is replaced with a tiny rubber chicken. Pays the same. Sounds worse.
 - ~~🍸 **Free drinks**, a waiter who walks past every 30 seconds and never stops at your table~~ ✅ **SHIPPED**
+- ~~🍾 **VIP bottle service**, with bottle girls, sparklers and your own song from YouTube~~ ✅ **SHIPPED**
 - 🎲 **Craps**, purely so we can put the word "craps" in a README
 - 🧓 **Your grandma**, who shows up and tells you to stop after 3 losses in a row
 - 🎟️ **Loyalty card**, earn points for every fake dollar lost and redeem them for absolutely nothing
@@ -195,6 +212,8 @@ It's a static site. [vercel.json](vercel.json) tells Vercel to serve the folder 
 | `Space` | SPIN (or skip a win/death screen) |
 | `Esc` | Disarm ALL IN / skip a screen |
 | **Click the waiter** | Snatch a free drink 🍸 |
+| **🍾 Drinks** | Open the menu. Big bottles bring bottle girls and your song 💃 |
+| `T` (during a party) | Tap the beat to sync the dancers |
 | **💧 Water $5** | Sober up a little (overpriced, as is tradition) |
 | **Drag / scroll** on the wheel | Orbit / zoom the camera |
 
@@ -211,6 +230,7 @@ js/scenery.js         the casino: table, carpet, slot machines, lights, haze
 js/fx.js              WIN / MEGA WIN / JACKPOT! celebrations and YOU DIED
 js/drinks.js          the free-drinks waiter (never stops at your table)
 js/booze.js           the drink stack, the Tipsy-meter and the consequences
+js/vip.js             the paper drinks menu, bottle girls and the YouTube DJ booth
 js/ads.js             the totally real sponsors ($100 for the broke)
 js/slots.js           DRAGON RUSH WIN BIG: tumbles, free spins, buy bonus, autoplay
 js/rush-math.js       the slot maths: clusters, tumbles, ×1024 multiplier spots
@@ -221,7 +241,7 @@ scripts/dev-server.js tiny zero-dependency local server (not deployed)
 ```
 
 - **Fair-ish odds:** results come from `crypto.getRandomValues`, with no bias toward any number. The house edge is the good old single zero, same as a real European wheel.
-- **Everything is generated:** textures, sounds and music are all drawn or synthesised at runtime. The only thing downloaded is Three.js and two fonts.
+- **Everything is generated:** textures, sounds and music are all drawn or synthesised at runtime. The only things downloaded are Three.js, a few fonts and (only if you pick a song) the YouTube player.
 - **Your balance is saved** in your browser's `localStorage`. Reset it any time from the Add funds dialog.
 
 ---
