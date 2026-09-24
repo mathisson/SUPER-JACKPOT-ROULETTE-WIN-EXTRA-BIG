@@ -253,8 +253,9 @@ function dudeSvg() {
  * @param getBalance / spend  wallet
  * @param onBroke   () => void, nudge the player towards the fake cashier
  * @param tab     the bar tab: bar drinks go on it instead of being paid for
+ * @param onDave  () => void, Dave crashed the party (he'll remember you)
  */
-export function createVip({ button, sound, music, musicOn, toast, booze, getBalance, spend, onBroke, tab }) {
+export function createVip({ button, sound, music, musicOn, toast, booze, getBalance, spend, onBroke, tab, onDave }) {
   // A paper menu: slides up closed, the leather cover swings open onto two parchment pages.
   // The cover's inside face *is* the left page (the bar), the right page is bottle service.
   const itemHtml = (it, n) => `<button type="button" class="vip-item${it.gold ? ' gold' : ''}" data-id="${it.id}" style="--n:${n}">
@@ -677,6 +678,7 @@ export function createVip({ button, sound, music, musicOn, toast, booze, getBala
         daveLoop();
       });
       dave.addEventListener('click', () => dave?.classList.contains('dancing') && stumble("I'm fine!! I'm FINE 🙃"));
+      onDave?.();
     }
     const DAVE_LINES = [
       'I love you guys!!', '*hic*', 'Is this the Macarena?', 'Watch this move!', 'My wife thinks I\'m at a conference',

@@ -19,6 +19,9 @@
 * { box-sizing: border-box; }
 
 html, body { margin: 0; height: 100%; }
+/* keep the scrollbar's space even when the page can't scroll (the slots room locks it),
+   so walking between rooms never shifts the layout sideways */
+html { scrollbar-gutter: stable; }
 
 body {
   background: radial-gradient(ellipse at 50% 20%, #12301f 0%, var(--bg) 70%);
@@ -1395,20 +1398,20 @@ input.invalid { border-color: var(--neg); }
 }
 
 /* ================= Being drunk ================= */
-/* The room sways, not <main> itself: main clips (see the slots section), so the tilted
-   corners can't grow the page and make the scrollbars flicker in and out. The slots room
-   keeps its own slide-in transform, so the sway sits out while you're there. */
+/* The rooms (stage, table, slots room) move, never <main> itself: main clips (see the slots
+   section), so nothing tilted or shifted inside it can grow the page and flash scrollbars.
+   Each motion owns its own property so they stack instead of cancelling each other:
+     slide between rooms = transform · drunk sway = rotate · walking head-bob = translate */
 body.drunk-1 { --sway: 0.35deg; --sway-time: 7s; }
 body.drunk-2 { --sway: 0.9deg; --sway-time: 5s; }
 body.drunk-3 { --sway: 1.6deg; --sway-time: 4s; }
 body.drunk-4 { --sway: 2.6deg; --sway-time: 3s; }
-body:is(.drunk-1, .drunk-2, .drunk-3, .drunk-4):not(.in-slots) :is(.stage, .table-area) {
-  animation: sway var(--sway-time) ease-in-out infinite;
-}
+body:is(.drunk-1, .drunk-2, .drunk-3, .drunk-4) { --room-sway: sway var(--sway-time) ease-in-out infinite; }
+:is(.stage, .table-area, .slots-view) { animation: var(--room-sway, none), var(--room-bob, none); }
 body.drunk-4 main { animation: hueTrip 9s linear infinite; }
 @keyframes sway {
-  0%, 100% { transform: rotate(calc(var(--sway) * -1)) translateX(-5px); }
-  50% { transform: rotate(var(--sway)) translateX(5px); }
+  0%, 100% { rotate: calc(var(--sway) * -1); }
+  50% { rotate: var(--sway); }
 }
 @keyframes hueTrip { to { filter: hue-rotate(360deg); } }
 
@@ -1583,12 +1586,12 @@ body.drunk-4 .rack-col { animation: sway 2.2s ease-in-out infinite; --sway: 3deg
 main { position: relative; overflow: clip; } /* clip both ways: nothing inside may grow the page */
 .stage, .table-area { transition: transform 1.6s cubic-bezier(0.6, 0, 0.3, 1), opacity 1.2s; }
 body.in-slots .stage, body.in-slots .table-area { transform: translateX(-40%); opacity: 0; pointer-events: none; }
-/* head-bob while you walk between rooms (one bob per footstep) */
-body.walking main { animation: walkBob 0.54s ease-in-out infinite; }
+/* head-bob while you walk between rooms (one bob per footstep), on the rooms inside <main>
+   (see "Being drunk" for why not on <main> itself) */
+body.walking { --room-bob: walkBob 0.54s ease-in-out infinite; }
 @keyframes walkBob {
-  0%, 50%, 100% { transform: translateY(0) rotate(0); }
-  25% { transform: translateY(-7px) rotate(-0.3deg); }
-  75% { transform: translateY(-7px) rotate(0.3deg); }
+  0%, 50%, 100% { translate: 0 0; }
+  25%, 75% { translate: 0 -7px; }
 }
 
 /* ---- the arrows ---- */
@@ -2016,7 +2019,9 @@ body.in-slots { overflow: hidden; }
 
 /* drunk slots */
 body.drunk-2 .dr-canvas, body.drunk-3 .dr-canvas, body.drunk-4 .dr-canvas { animation: blurPulse 2.6s ease-in-out infinite; --blur: 2px; }
-body.drunk-3 .slots-view, body.drunk-4 .slots-view { animation: sway 3.5s ease-in-out infinite; --sway: 1.2deg; }
+/* the slots room only starts swaying once you are properly drunk, and gentler */
+body:is(.drunk-1, .drunk-2) .slots-view { --room-sway: none; }
+body:is(.drunk-3, .drunk-4) .slots-view { --sway: 1.2deg; --room-sway: sway 3.5s ease-in-out infinite; }
 
 @media (max-width: 900px) {
   .dr-layout {
@@ -3212,4 +3217,125 @@ body.kitchen-on { overflow: hidden; }
   @keyframes kIn { from { transform: translateY(30px); opacity: 0; } }
   .k-caption { top: 12px; font-size: 12px; }
   .k-stats { gap: 10px; font-size: 13px; }
+}
+
+/* ================= 🍺 Dave + 🤕 the morning after ================= */
+.dave-bubble {
+  position: absolute;
+  z-index: 4;
+  max-width: 260px;
+  padding: 8px 13px;
+  border-radius: 14px;
+  background: #fff;
+  color: #151515;
+  font-weight: 800;
+  font-size: 14px;
+  line-height: 1.25;
+  text-align: center;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  transform: translate(-50%, calc(-100% - 10px)) scale(0.3);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.3s cubic-bezier(0.2, 1.8, 0.4, 1);
+}
+.dave-bubble::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  border: 8px solid transparent;
+  border-top-color: #fff;
+  transform: translateX(-50%);
+}
+.dave-bubble.pop { opacity: 1; transform: translate(-50%, calc(-100% - 10px)) scale(1); }
+
+/* Dave's texts: a phone notification that slides in from the top right */
+.dave-text {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 59;
+  width: min(320px, calc(100% - 28px));
+  padding: 10px 14px 11px;
+  border-radius: 18px;
+  background: rgba(245, 245, 250, 0.96);
+  color: #111;
+  font-family: Inter, system-ui, sans-serif;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  transform: translateY(calc(-100% - 30px));
+  transition: transform 0.45s cubic-bezier(0.2, 1.2, 0.4, 1);
+}
+.dave-text.show { transform: none; }
+.dt-top { display: flex; justify-content: space-between; font-size: 11px; color: #777; text-transform: uppercase; letter-spacing: 0.04em; }
+.dt-from { margin-top: 4px; font-weight: 800; font-size: 14px; }
+.dt-msg { font-size: 14px; line-height: 1.3; margin-top: 1px; }
+.dt-foot { margin-top: 6px; font-size: 11px; color: #999; }
+.dave-text.seen .dt-foot { color: #1a73e8; }
+
+/* the morning after */
+body.hangover-on { overflow: hidden; }
+.hangover {
+  position: fixed;
+  inset: 0;
+  z-index: 57;
+  background: #000;
+  opacity: 0;
+  transition: opacity 1.2s;
+}
+.hangover.on { opacity: 1; }
+.hangover .k-stage, .hangover .k-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.h-ui { position: absolute; inset: 0; pointer-events: none; }
+.h-card {
+  position: absolute;
+  left: max(16px, 5vw);
+  top: 50%;
+  transform: translateY(-50%);
+  width: min(380px, calc(100% - 32px));
+  padding: 22px;
+  border-radius: 18px;
+  background: rgba(20, 14, 10, 0.72);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 236, 190, 0.35);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+  animation: hIn 0.9s cubic-bezier(0.2, 1, 0.3, 1);
+}
+@keyframes hIn { from { opacity: 0; transform: translateY(-50%) translateX(-30px); filter: blur(8px); } }
+.h-card h2 { margin: 0; font-family: Cinzel, serif; font-size: 30px; color: #ffe9a8; }
+.h-sub { margin: 4px 0 14px; color: var(--muted); font-style: italic; }
+.h-recap { list-style: none; margin: 0 0 16px; padding: 0; display: flex; flex-direction: column; gap: 7px; font-size: 14.5px; }
+.h-recap b { color: #ffd36b; }
+.h-card .btn { margin-top: 8px; font-weight: 700; }
+.h-card .btn small { font-weight: 400; opacity: 0.8; }
+.h-shades:disabled { opacity: 0.6; }
+
+/* back at the casino, hungover: everything is too bright and it throbs */
+body.hungover main { animation: throb 1.3s ease-in-out infinite; }
+@keyframes throb {
+  0%, 100% { filter: brightness(1.35) contrast(1.1) saturate(0.75); }
+  50% { filter: brightness(1.7) contrast(1.15) saturate(0.6); }
+}
+.hangover-badge {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  z-index: 45;
+  transform: translateX(-50%);
+  padding: 9px 16px;
+  border-radius: 99px;
+  border: 1px solid rgba(255, 236, 190, 0.6);
+  background: rgba(40, 28, 10, 0.92);
+  color: #ffe9a8;
+  font-weight: 700;
+  font-size: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  animation: pulse 1.3s ease-in-out infinite;
+}
+.hangover-badge b { color: #fff; }
+
+@media (max-width: 700px) {
+  .h-card { top: auto; bottom: 16px; transform: none; }
+  @keyframes hIn { from { opacity: 0; transform: translateY(30px); filter: blur(8px); } }
+  .dave-bubble { max-width: 200px; font-size: 12.5px; }
 }

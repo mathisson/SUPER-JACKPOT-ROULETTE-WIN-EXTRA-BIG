@@ -8,6 +8,8 @@ import { watchAd } from './ads.js';
 import { createSlots } from './slots.js';
 import { createVip } from './vip.js';
 import { createTab } from './tab.js';
+import { createDave } from './dave.js';
+import { createHangover } from './hangover.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 
@@ -807,6 +809,7 @@ function settle(n) {
   store.set('fr.history', history);
 
   showResult(n, net, returned);
+  dave.onSpin(net);
   if (net > 0) {
     const level = winLevel(net, staked);
     const r = cells['n' + n].getBoundingClientRect();
@@ -956,6 +959,8 @@ const MAYBES = [
   ['🍸', 'Free drinks: a waiter walks past every 30 seconds and never stops at your table', 'LIVE ✅'],
   ['🍾', 'VIP bottle service: bottle girls, sparklers, and your song from YouTube', 'LIVE ✅'],
   ['🧽', "Bar tab: can't pay? Wash dishes in the kitchen until the chef lets you go", 'LIVE ✅'],
+  ['🍺', 'Dave remembers you: he borrows chips off your rack and texts you "u up? 🎰"', 'LIVE ✅'],
+  ['🤕', 'Close the tab drunk and wake up hungover in a hotel room with a traffic cone', 'LIVE ✅'],
   ['🎲', 'Craps, purely so we can say "craps" in the game', 'lol'],
   ['🧓', 'Your grandma, who tells you to stop after 3 losses in a row', 'she insists'],
   ['🎟️', 'Loyalty card: earn points for every fake dollar lost, redeem for nothing', 'unlikely'],
@@ -1249,7 +1254,7 @@ const booze = createBar({
 });
 startWaiter({
   stage: document.querySelector('.stage'),
-  canWalk: () => !fxActive() && !document.body.classList.contains('bonus-active') && !document.body.classList.contains('vip-party-on') && !document.body.classList.contains('kitchen-on') && !slots?.isOpen(),
+  canWalk: () => !fxActive() && !document.body.classList.contains('bonus-active') && !['vip-party-on', 'kitchen-on', 'hangover-on'].some((c) => document.body.classList.contains(c)) && !slots?.isOpen(),
   onClink: () => sound.clink(),
   pickDrink: booze.pickDrink,
   getTarget: booze.target,
@@ -1277,12 +1282,63 @@ const tab = createTab({
   resume3d: () => !slots?.isOpen() && wheel.resume(),
   isBusy: () =>
     spinning || fxActive() || !!document.querySelector('dialog[open]') ||
-    ['vip-party-on', 'bonus-active'].some((c) => document.body.classList.contains(c)),
+    ['vip-party-on', 'bonus-active', 'hangover-on'].some((c) => document.body.classList.contains(c)),
+});
+
+// ---------- 🍺 Dave (he remembers you) ----------
+const dave = createDave({
+  wheel,
+  stage: document.querySelector('.stage'),
+  store,
+  sound,
+  toast,
+  booze,
+  getBalance: () => balance,
+  // he takes chips straight off your rack. he's good for it.
+  borrow: (amount, to) => {
+    if (spinning || balance < amount) return false;
+    balance -= amount;
+    pieces(amount, 4).forEach((p, i) =>
+      fly(rackPoint(p.denom), to, p.denom, { delay: i * 90, fade: true, onStart: () => addBank(-p.value) })
+    );
+    sound.chip();
+    render();
+    return true;
+  },
+  repay: (amount, from) => {
+    balance += amount;
+    fly(from, rackPoint(1), 1, { onLand: () => { addBank(amount); sound.cash(); } });
+    render();
+  },
+  isIdle: () =>
+    !spinning && !fxActive() && !slots?.isOpen() && !document.querySelector('dialog[open]') &&
+    !['vip-party-on', 'bonus-active', 'kitchen-on', 'hangover-on'].some((c) => document.body.classList.contains(c)),
+});
+
+// ---------- 🤕 the morning after ----------
+const hangover = createHangover({
+  store,
+  sound,
+  toast,
+  booze,
+  dave,
+  getBalance: () => balance,
+  spend: (v) => {
+    balance -= v;
+    render();
+  },
+  pause3d: () => wheel.pause(),
+  resume3d: () => !slots?.isOpen() && wheel.resume(),
+  setLoud: (on) => {
+    if (!sound.ctx) return;
+    sound.master.gain.setTargetAtTime(on ? 1.9 : 1, sound.ctx.currentTime, 0.3);
+  },
 });
 
 // ---------- 🍾 drinks menu + VIP bottle service ----------
 createVip({
   tab,
+  onDave: () => dave.meet('party'),
   button: $('drinksBtn'),
   sound,
   music,
@@ -1341,7 +1397,8 @@ $('adBtn').addEventListener('click', () => {
 });
 
 // ---------- 🎁 daily login bonus ($1, 30 unskippable seconds) ----------
-if (bonusDue(store)) {
+// (after the morning after, if there is one: one ceremony at a time)
+if (bonusDue(store)) hangover.whenDone(() =>
   setTimeout(
     () =>
       offerBonus({
@@ -1356,7 +1413,7 @@ if (bonusDue(store)) {
         },
       }),
     1500
-  );
-}
+  )
+);
 
 render();

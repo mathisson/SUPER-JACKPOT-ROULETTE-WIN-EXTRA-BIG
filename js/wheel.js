@@ -87,6 +87,7 @@ export class RouletteWheel {
     new ResizeObserver(() => this.resize()).observe(container);
     this.resize();
 
+    this.hooks = [];
     this.clock = new THREE.Clock();
     renderer.setAnimationLoop(() => this.frame());
   }
@@ -311,6 +312,11 @@ export class RouletteWheel {
     this.camera.updateProjectionMatrix();
   }
 
+  /** Run fn(dt, t) every frame, for things living in this scene (hello, Dave). */
+  onFrame(fn) {
+    this.hooks.push(fn);
+  }
+
   /** Stop rendering (e.g. while you are over at the slots). */
   pause() {
     this.renderer.setAnimationLoop(null);
@@ -413,6 +419,7 @@ export class RouletteWheel {
     const beta = this.phi + rel;
     this.ball.position.copy(polar(r, beta, surfaceY(r) + BALL_R + hop));
 
+    for (const h of this.hooks) h(dt, this.clock.elapsedTime);
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
   }
