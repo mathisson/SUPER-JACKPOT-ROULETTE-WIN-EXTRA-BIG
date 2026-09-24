@@ -36,8 +36,26 @@ const LOSE = ['Ohhh so close', 'The wheel is rigged. Against ME specifically.', 
 const ASK = ['Can I borrow {x}? I\'m good for it 👍', 'Spot me {x}? Pay you back Tuesday', 'Quick {x} for my system?', '{x} for a drink? For both of us. For me.'];
 const POKE = ['Heyyy 👋', 'Stop poking me, I\'m concentrating', 'Your money? Next week. Definitely next week.', 'I\'m not drunk, YOU\'RE drunk', '*hic*'];
 
+// ---- the phone conversation: what you can say, and how Dave takes it ----
+export const REPLIES = {
+  nice: ['love u man ❤️', 'best night ever 🍾', 'ur the best dave', 'miss u buddy', 'come by the table later!'],
+  weird: ['who is this?', 'new phone who dis', 'is this the pizza place?', 'k', '🦐'],
+  mean: ['pay me back.', 'stop texting me', 'no.', 'leave me alone dave', 'u owe me money'],
+  sorry: ['sorry dave 🥺'],
+};
+const MOOD = { nice: 18, weird: -4, mean: -28, sorry: 45, ignored: -8 };
+const ANGRY_AT = -55; // at or below this he comes over
+const GIFT_AT = 55; // at or above this he sends something
+const ANSWERS = {
+  nice: ['AWWW 🥹', 'u get me bro', 'ur my best friend. my only friend', 'love u too man 🍺', 'ur gonna make me cry at the slots'],
+  weird: ['its DAVE', 'DAVE. from the club', 'bro its me. DAVE', 'u have my shoes. remember?', '???'],
+  mean: ['wow', 'ok thats it', 'after everything i did for u', 'u want ur money? come get it', 'rude'],
+  sorry: ['...fine', 'ok i forgive u. hug? 🤗', 'u better be sorry', 'apology accepted. u still have my shoes'],
+};
+const ANGRY_HI = ['YOU. 😤', 'We need to TALK.', 'Oh you think you can text me like THAT?', 'Move. I\'m standing here now. ANGRILY.'];
+
 // ---------- the 3D Dave ----------
-function buildDave() {
+export function buildDave() {
   const skin = new THREE.MeshStandardMaterial({ color: 0xf1c27d, roughness: 0.65 });
   const shirt = new THREE.MeshStandardMaterial({ color: 0xdce8f6, roughness: 0.8 });
   const sweat = new THREE.MeshStandardMaterial({ color: 0xb4c6dc, roughness: 0.9 });
@@ -115,7 +133,8 @@ function buildDave() {
   const head = new THREE.Group();
   head.position.y = 1.95;
   body.add(head);
-  head.add(new THREE.Mesh(new THREE.SphereGeometry(0.42, 24, 18), skin));
+  const headMat = skin.clone(); // his own, so he can go red in the face
+  head.add(new THREE.Mesh(new THREE.SphereGeometry(0.42, 24, 18), headMat));
   const nose = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 10), new THREE.MeshStandardMaterial({ color: 0xe0706a, roughness: 0.5 }));
   nose.position.set(0, -0.02, 0.41);
   head.add(nose);
@@ -157,7 +176,7 @@ function buildDave() {
 
   root.traverse((o) => o.isMesh && (o.castShadow = true));
   root.scale.setScalar(0.8);
-  return { root, body, head, armL, armR, mug, legs };
+  return { root, body, head, headMat, armL, armR, mug, legs };
 }
 
 /**
@@ -166,12 +185,28 @@ function buildDave() {
  * @param borrow    (amount, toPoint) => bool, move chips from the rack to Dave
  * @param repay     (amount, fromPoint) => void, the rarest event in the casino
  * @param isIdle    () => bool, nothing else is going on, Dave may drop by
+ * @param onSpill   () => void, he knocked his beer over the table
  */
-export function createDave({ wheel, stage, store, sound, toast, booze, getBalance, borrow, repay, isIdle }) {
+export function createDave({ wheel, stage, store, sound, toast, booze, getBalance, borrow, repay, isIdle, onSpill }) {
   const state = store.get('fr.dave', { met: false, owed: 0, texts: [] });
+  // older saves kept only his last few texts; the phone keeps the whole conversation
+  state.thread ??= (state.texts || []).map((x) => ({ from: 'dave', m: x.m, t: x.t }));
+  state.mood ??= 0;
+  state.lastRead ??= 0;
+  delete state.texts;
   const save = () => store.set('fr.dave', state);
+  // the phone plugs in here: open/close it, is it open, where its button is
+  const hooks = {};
+  const listeners = [];
+  const emit = (type, data) => listeners.forEach((fn) => fn(type, data));
 
   const dave = buildDave();
+  const SKIN = dave.headMat.color.clone();
+  const RED_FACE = new THREE.Color(0xe0302a);
+  const steam = new THREE.Group();
+  for (let i = 0; i < 8; i++) steam.add(new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 })));
+  steam.visible = false;
+  dave.head.add(steam);
   dave.root.visible = false;
   dave.root.position.copy(OFFSTAGE);
   wheel.scene.add(dave.root);
@@ -189,6 +224,12 @@ export function createDave({ wheel, stage, store, sound, toast, booze, getBalanc
   let bubbleT = 0;
   let visitTimer = null;
   let textTimer = null;
+  let anger = 0; // 0..1, how red his face is
+  let angryVisit = false;
+  let awaitingSorry = false;
+  let sorryTimer = null;
+  let angryPending = false;
+  let readTimer = null;
 
   function say(text, secs = 3) {
     bubble.textContent = text;
@@ -222,16 +263,75 @@ export function createDave({ wheel, stage, store, sound, toast, booze, getBalanc
     visitTimer = setTimeout(() => (isIdle() ? visit() : scheduleVisit(20000)), ms);
   }
 
-  function visit(first = false) {
+  function visit(first = false, angry = false) {
     if (mode !== 'away') return;
     mode = 'enter';
     modeT = 0;
     spinsHere = 0;
     idleT = 0;
+    angryVisit = angry;
     dave.root.visible = true;
     dave.root.position.copy(OFFSTAGE);
-    say(first ? "Heyyy! I'm Dave! 🍺 Nice table. I'm standing on it now." : pick(HI));
-    sound.blip(220, 0.25, 'sawtooth', 0.05);
+    say(angry ? pick(ANGRY_HI) : first ? "Heyyy! I'm Dave! 🍺 Nice table. I'm standing on it now." : pick(HI));
+    sound.blip(angry ? 110 : 220, angry ? 0.45 : 0.25, 'sawtooth', angry ? 0.09 : 0.05);
+  }
+
+  /** Angry Dave, once he's on the table: does something about it, then wants an apology. */
+  function actAngry() {
+    if (mode !== 'here' || !angryVisit) return;
+    const bal = getBalance();
+    if (bal >= 40 && Math.random() < 0.5) {
+      const amt = Math.max(10, Math.floor(Math.min(250, bal * 0.4) / 10) * 10);
+      say("This is INTEREST. 😤", 3);
+      react = { kind: 'ask', t: 0 };
+      setTimeout(() => {
+        if (mode !== 'here' || !borrow(amt, () => screenPoint(1.6))) return;
+        state.owed += amt;
+        save();
+        toast(`💸 Dave took ${money(amt)} as "interest". (He now "owes" you ${money(state.owed)}.)`);
+      }, 1000);
+    } else {
+      say('Oops. 🍺 (Not oops.)', 3);
+      react = { kind: 'win', t: 1.2 };
+      onSpill?.();
+      toast("🍺 Dave poured his beer all over the table. Everything is sticky now.");
+    }
+    setTimeout(() => {
+      if (mode !== 'here') return;
+      awaitingSorry = true;
+      say("I'm not leaving until you say sorry. TEXT ME. 📱", 5);
+      emit('sorry', true);
+      clearTimeout(sorryTimer);
+      sorryTimer = setTimeout(() => {
+        if (!awaitingSorry) return;
+        awaitingSorry = false;
+        emit('sorry', false);
+        state.mood = -15;
+        save();
+        leave("Fine. FINE. I'm leaving. 😤");
+      }, 75000);
+    }, 3800);
+  }
+
+  /** The food courier walks past and Dave helps himself. */
+  function snatch(food) {
+    if (mode !== 'here') return;
+    react = { kind: 'ask', t: 0 };
+    say(`Ooh, ${food}! For ME? You shouldn't have! 😋`, 3.5);
+    state.mood = clamp(state.mood + 10);
+    save();
+    setTimeout(() => fromDave(`thx for the ${food} bro 😋 u r a real one`), 20000);
+  }
+
+  function apologized() {
+    if (!awaitingSorry) return;
+    awaitingSorry = false;
+    angryVisit = false;
+    clearTimeout(sorryTimer);
+    emit('sorry', false);
+    react = { kind: 'win', t: 0 };
+    say('...fine. Hug? 🤗', 3);
+    setTimeout(() => leave('Love you man. Bye.'), 3500);
   }
 
   function leave(line = pick(BYE)) {
@@ -259,6 +359,10 @@ export function createDave({ wheel, stage, store, sound, toast, booze, getBalanc
   /** Called after every roulette spin. */
   function onSpin(net) {
     if (mode !== 'here') return;
+    if (angryVisit) {
+      react = { kind: net < 0 ? 'win' : 'lose', t: 0 };
+      return say(net < 0 ? 'HA! Karma. 😤' : net > 0 ? "That doesn't count." : 'Hmph.');
+    }
     spinsHere++;
     idleT = 0;
     if (net > 0) {
@@ -311,6 +415,7 @@ export function createDave({ wheel, stage, store, sound, toast, booze, getBalanc
       if (k >= 1) {
         mode = 'here';
         modeT = 0;
+        if (angryVisit) setTimeout(actAngry, 1200);
       }
     } else if (mode === 'leave') {
       const k = Math.min(1, modeT / 3);
@@ -319,16 +424,19 @@ export function createDave({ wheel, stage, store, sound, toast, booze, getBalanc
         mode = 'away';
         dave.root.visible = false;
         bubble.classList.remove('pop');
+        angryVisit = false;
         scheduleVisit();
       }
     } else {
       // hang around; ask for money if nobody spins for a while, leave eventually
       idleT += dt;
-      if (idleT > 22 && Math.random() < dt * 0.15) {
+      if (angryVisit) {
+        // an angry Dave doesn't chat, he waits for his apology (see actAngry)
+      } else if (idleT > 22 && Math.random() < dt * 0.15) {
         idleT = 0;
         Math.random() < 0.5 ? ask() : say(pick(TEXTS.slice(1, 6)).replace(/^./, (c) => c.toUpperCase()));
       }
-      if (modeT > 80) leave();
+      if (modeT > 80 && !angryVisit) leave();
     }
 
     // drunk idle: sway, wobbly head, a sip every few seconds
@@ -368,6 +476,19 @@ export function createDave({ wheel, stage, store, sound, toast, booze, getBalanc
     dave.armR.g.rotation.z = spread;
     dave.root.rotation.y = walking ? (mode === 'enter' ? 0.9 : -0.9) : Math.sin(t * 0.5) * 0.15;
 
+    // angry: face goes red, steam comes out of his ears
+    anger += ((angryVisit ? 1 : 0) - anger) * (1 - Math.exp(-dt * 2));
+    dave.headMat.color.copy(SKIN).lerp(RED_FACE, anger);
+    steam.visible = anger > 0.05;
+    if (steam.visible) {
+      steam.children.forEach((puff, i) => {
+        const k = (t * 0.8 + i / steam.children.length) % 1;
+        puff.position.set((i % 2 ? 1 : -1) * (0.45 + k * 0.25), 0.1 + k * 0.9, 0);
+        puff.scale.setScalar(0.06 + k * 0.16);
+        puff.material.opacity = (1 - k) * 0.8 * anger;
+      });
+    }
+
     // keep the bubble over his head
     if (bubble.classList.contains('pop')) {
       const s = screenPoint();
@@ -384,27 +505,115 @@ export function createDave({ wheel, stage, store, sound, toast, booze, getBalanc
   document.body.appendChild(phone);
   let phoneHide = null;
 
-  function text(msg) {
-    msg ||= state.owed > 0 && Math.random() < 0.35 ? pick(OWED_TEXTS)(state.owed) : pick(TEXTS);
-    state.texts = [...state.texts, { m: msg, t: Date.now() }].slice(-6);
+  /** The phone's text tone: a bright little three-note chime, and a buzz on real phones. */
+  function textTone() {
+    [1318.5, 1975.5, 2637].forEach((f, i) => {
+      sound.blip(f, 0.16, 'triangle', 0.11, i * 0.085);
+      sound.blip(f * 2, 0.06, 'sine', 0.03, i * 0.085);
+    });
+    try {
+      navigator.vibrate?.([70, 50, 70]);
+    } catch {}
+  }
+
+  /** A message from Dave lands in the thread: tone, buzz, and a banner unless you're looking at him. */
+  function fromDave(msg, { banner = true } = {}) {
+    state.thread = [...state.thread, { from: 'dave', m: msg, t: Date.now() }].slice(-60);
     save();
+    textTone();
+    emit('message');
+    hooks.onText?.(msg);
+    if (!banner || hooks.isReading?.()) return;
     phone.innerHTML = `<div class="dt-top"><span class="dt-app">💬 Messages</span><span>now</span></div>
-      <div class="dt-from">Dave 🍺</div><div class="dt-msg"></div><div class="dt-foot">Tap to leave on read</div>`;
+      <div class="dt-from">Dave 🍺</div><div class="dt-msg"></div><div class="dt-foot">Tap to open 📱</div>`;
     phone.querySelector('.dt-msg').textContent = msg;
-    phone.classList.remove('seen');
     phone.classList.add('show');
-    sound.blip(1320, 0.07, 'sine', 0.1);
-    sound.blip(1760, 0.09, 'sine', 0.08, 0.09);
     clearTimeout(phoneHide);
     phoneHide = setTimeout(() => phone.classList.remove('show'), 6000);
   }
+
+  function text(msg) {
+    msg ||= state.owed > 0 && Math.random() < 0.35 ? pick(OWED_TEXTS)(state.owed) : pick(TEXTS);
+    fromDave(msg);
+  }
   phone.addEventListener('click', () => {
-    phone.classList.add('seen');
-    phone.querySelector('.dt-foot').textContent = 'Read ✓✓ (he saw that)';
-    clearTimeout(phoneHide);
-    phoneHide = setTimeout(() => phone.classList.remove('show'), 1400);
-    setTimeout(() => Math.random() < 0.5 && text(pick(['???', 'wow ok', 'i can see u read that', 'ur typing… no ur not'])), 5000);
+    phone.classList.remove('show');
+    hooks.openPhone?.('messages');
   });
+
+  // ---------- talking back ----------
+  const clamp = (v) => Math.max(-100, Math.min(100, v));
+  function reply(kind, msg) {
+    state.thread = [...state.thread, { from: 'me', m: msg, t: Date.now() }].slice(-60);
+    state.mood = clamp(state.mood + MOOD[kind]);
+    state.lastRead = Date.now();
+    clearTimeout(readTimer);
+    save();
+    emit('message');
+    if (kind === 'sorry') apologized();
+    setTimeout(() => {
+      emit('typing', true);
+      setTimeout(() => {
+        emit('typing', false);
+        const angry = kind === 'mean' && state.mood <= ANGRY_AT;
+        fromDave(angry ? 'omw 😤' : pick(ANSWERS[kind]), { banner: false });
+        // "who is this?" gets you a flood
+        if (kind === 'weird' && Math.random() < 0.5) {
+          setTimeout(() => fromDave('ITS DAVE', { banner: false }), 700);
+          setTimeout(() => fromDave('D A V E', { banner: false }), 1400);
+        }
+        checkMood();
+      }, rand(1100, 2600));
+    }, 600);
+  }
+
+  function checkMood() {
+    if (state.mood <= ANGRY_AT && !angryPending && mode === 'away') {
+      angryPending = true;
+      state.mood = -30;
+      save();
+      const go = () => {
+        if (mode !== 'away') return setTimeout(go, 3000);
+        if (!isIdle(true)) return setTimeout(go, 2500);
+        angryPending = false;
+        hooks.closePhone?.();
+        setTimeout(() => visit(false, true), 500);
+      };
+      setTimeout(go, rand(5000, 9000));
+    } else if (state.mood >= GIFT_AT) {
+      state.mood = 25;
+      save();
+      setTimeout(() => fromDave('sending u something 😏', { banner: false }), 1500);
+      setTimeout(() => {
+        const from = hooks.phonePoint?.() || { x: innerWidth - 60, y: 40 };
+        if (state.owed >= 25 && Math.random() < 0.35) {
+          repay(25, from);
+          state.owed -= 25;
+          save();
+          toast(`💸 Dave sent you ${money(25)} back! He still owes you ${money(state.owed)}.`);
+        } else if (!booze.blackedOut()) {
+          booze.add({ emoji: '🍹', name: "Dave's Special (mostly ice)", abv: 1.5 });
+        }
+      }, 3500);
+    }
+  }
+
+  /** You opened his thread. Read and not answering is a choice, and he'll notice. */
+  function markRead() {
+    const had = unread();
+    state.lastRead = Date.now();
+    save();
+    emit('read');
+    clearTimeout(readTimer);
+    if (!had) return;
+    readTimer = setTimeout(() => {
+      state.mood = clamp(state.mood + MOOD.ignored);
+      save();
+      fromDave(pick(['i can see u read that', '???', 'wow ok', 'left on read. by u. of all people']));
+      checkMood();
+    }, 45000);
+  }
+  const unread = () => state.thread.filter((x) => x.from === 'dave' && x.t > state.lastRead).length;
 
   function scheduleTexts(ms = rand(100000, 200000)) {
     clearTimeout(textTimer);
@@ -432,9 +641,20 @@ export function createDave({ wheel, stage, store, sound, toast, booze, getBalanc
     onSpin,
     visit,
     text,
+    reply,
+    markRead,
+    unread,
     met: () => state.met,
     owed: () => state.owed,
-    texts: () => state.texts.map((x) => x.m),
+    mood: () => state.mood,
+    thread: () => state.thread,
+    texts: () => state.thread.filter((x) => x.from === 'dave').map((x) => x.m),
     here: () => mode !== 'away',
+    wantsSorry: () => awaitingSorry,
+    snatch,
+    /** Subscribe to 'message' | 'typing' | 'read' | 'sorry'. */
+    on: (fn) => listeners.push(fn),
+    /** The phone plugs in: openPhone(app), closePhone(), isReading(), phonePoint(), onText(msg). */
+    setHooks: (h) => Object.assign(hooks, h),
   };
 }

@@ -157,6 +157,21 @@ Close the tab while you're drunk and the next time you open it, you **wake up in
 
 Drink the $5 water to feel fine, or put your sunglasses on and go back to the casino **hungover**: for a minute everything is too bright, throbbing, and every sound is too loud.
 
+### 📱 YOUR PHONE
+Tap **📱** in the top bar (or press `P`) and a **3D phone** rises into your hand, tilting as you move. Its screen is fully clickable:
+
+- **💬 Messages**: your whole conversation with Dave, and a proper phone **text tone** every time he writes. Reply with one tap and watch his **mood** (🥰 → 😐 → 😤): be nice and he sends you a drink (or, once in a blue moon, some of your money back). Ask "who is this?" and he floods you with *ITS DAVE*. Be mean enough and he texts **"omw 😤"**, closes your phone, storms onto your table **red-faced with steam coming out of his ears**, takes your chips "as interest" or pours his beer over the table (it's sticky now), and refuses to leave until you text him **"sorry dave 🥺"**. Leave him on read and he notices.
+- **🚕 CabCab**: a ride home at a permanent 4.8× surge. Drunk? The driver takes you to the hotel instead, and you wake up in the morning after. Sober? Kevin drives you round the block.
+- **🛵 GrubGrab**: order a kebab, pizza or a Mystery Wrap to sober up. Marco the courier walks it across your roulette table in 3D. If Dave's on the table, there's a good chance he eats it.
+- **📸 Camera**: selfies of **your character**, in the casino, with Dave photobombing if he's around, and a wobbly double-vision filter when you're drunk.
+
+### ⚙️ YOUR CHARACTER, THE STORE & SETTINGS
+The round portrait in the **top-right corner** is you. Click it for Settings, with your 3D character on a spotlit turntable (drag to spin):
+
+- **👤 Character**: skin, hair, hair colour, facial hair, expression and T-shirt colour, plus everything you own.
+- **🛍️ Store**: spend your winnings on hats (party hat, traffic cone, cowboy, top hat, Dave's tie, a $5,000 crown…), glasses, necklaces and outfits up to a $25,000 solid gold suit. Try anything on for free before you buy.
+- **⚙️ Settings**: sound, music, Dave's text banners, and **reduce motion** (no screen shake, drunk swaying or head-bob).
+
 ### 📺 WATCH AN AD, GET $100
 Completely broke? At exactly **$0** with nothing on the table, a **Watch ad: +$100** button appears. Enjoy a message from our totally real sponsors: Hot Singles (they're dice), Waiter Academy™, Grandma's Cookies, Download More Money.biz and friends. It's "Ad 1 of 1"… until it becomes **Ad 2 of 1**. The skip button counts down, then refuses. After 15 seconds, claim your $100.
 
@@ -197,6 +212,8 @@ On narrow screens the table flips vertical: 0 on top, numbers running down the s
 - ~~🧽 **A bar tab** you can pay off by washing dishes~~ ✅ **SHIPPED**
 - ~~🍺 **Dave's revenge**: he borrows your chips and texts you "u up?"~~ ✅ **SHIPPED**
 - ~~🤕 **Hangovers**, if you close the tab drunk~~ ✅ **SHIPPED**
+- ~~📱 **A phone**, to text Dave back (at your own risk), call a cab and take selfies~~ ✅ **SHIPPED**
+- ~~🎩 **A character and a hat store**~~ ✅ **SHIPPED**
 - 🎲 **Craps**, purely so we can put the word "craps" in a README
 - 🧓 **Your grandma**, who shows up and tells you to stop after 3 losses in a row
 - 🎟️ **Loyalty card**, earn points for every fake dollar lost and redeem them for absolutely nothing
@@ -249,6 +266,8 @@ It's a static site. [vercel.json](vercel.json) tells Vercel to serve the folder 
 | **🍾 Drinks** | Open the menu. Big bottles bring bottle girls and your song 💃 |
 | `T` (during a party) | Tap the beat to sync the dancers |
 | **Click Dave** | Ask for your money back (he will not give it back) |
+| `P` | Take your phone out / put it away |
+| **Top-right portrait** | Settings, your character and the store |
 | **💧 Water $5** | Sober up a little (overpriced, as is tradition) |
 | **Drag / scroll** on the wheel | Orbit / zoom the camera |
 
@@ -271,6 +290,11 @@ js/kitchen3d.js       the 3D receipt printer and the 3D dishwashing sink
 js/dave.js            Dave: in 3D on your table, borrowing chips, texting you
 js/hangover.js        noticing you left drunk, the morning after, being hungover
 js/hangover3d.js      the 3D hotel room: blinds, sunbeams, buzzing phone, the cone
+js/phone.js           the phone's apps: Messages, CabCab, GrubGrab, Camera
+js/phone3d.js         the 3D handset (CSS3D screen) and the selfie camera scene
+js/courier.js         Marco the food courier, walking across your table in 3D
+js/avatar.js          your 3D character, the store catalogue, the turntable
+js/settings.js        the top-right Settings page: character, store, settings
 js/ads.js             the totally real sponsors ($100 for the broke)
 js/slots.js           DRAGON RUSH WIN BIG: tumbles, free spins, buy bonus, autoplay
 js/rush-math.js       the slot maths: clusters, tumbles, ×1024 multiplier spots

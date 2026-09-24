@@ -40,7 +40,8 @@ export function createHangover({ store, sound, toast, booze, dave, getBalance, s
     }
   };
 
-  function wakeUp(info) {
+  /** reason: 'left' (closed the tab drunk) or 'cab' (took a cab home from the phone) */
+  function wakeUp(info, reason = 'left') {
     // your phone knows Dave, even if you don't (yet)
     let texts;
     if (!dave.met()) {
@@ -70,11 +71,12 @@ export function createHangover({ store, sound, toast, booze, dave, getBalance, s
       el.querySelector('.h-ui').innerHTML = `
         <div class="h-card">
           <h2>☀️ Good morning.</h2>
-          <p class="h-sub">It's 11:47 AM. You don't remember getting here.</p>
+          <p class="h-sub">${reason === 'cab' ? 'It\'s 11:47 AM. You took a cab home. The driver took you to a hotel instead.' : 'It\'s 11:47 AM. You don\'t remember getting here.'}</p>
           <ul class="h-recap">
             <li>🍸 You had <b>${info.drinks || 'a lot of'}</b> drink${info.drinks === 1 ? '' : 's'}</li>
             <li>📱 <b>${texts.length}</b> unread texts from Dave</li>
             <li>💸 ${owed ? `Dave owes you <b>${money(owed)}</b>. Dave will never pay you back.` : 'Dave says you owe HIM money. You do not.'}</li>
+            ${reason === 'cab' ? `<li>🚕 Cab: <b>-${money(info.fare || 0)}</b> (4.8× surge, 1 hotel, 0 homes)</li>` : ''}
             <li>🚧 There is a traffic cone in your bed</li>
           </ul>
           <button type="button" class="btn gold wide h-water">💧 Drink the ${money(WATER)} water <small>(cures it)</small></button>
@@ -155,5 +157,11 @@ export function createHangover({ store, sound, toast, booze, dave, getBalance, s
   return {
     /** Run fn once the morning after is over (right away if there isn't one). */
     whenDone: (fn) => (pending ? waiters.push(fn) : fn()),
+    /** Wake up in the hotel room right now (the cab home from the phone). */
+    wakeUpNow(info, reason = 'cab') {
+      if (el) return;
+      pending = true;
+      wakeUp(info, reason);
+    },
   };
 }

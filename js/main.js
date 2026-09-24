@@ -10,6 +10,9 @@ import { createVip } from './vip.js';
 import { createTab } from './tab.js';
 import { createDave } from './dave.js';
 import { createHangover } from './hangover.js';
+import { createSettings } from './settings.js';
+import { createCourier } from './courier.js';
+import { createPhone } from './phone.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 
@@ -961,6 +964,8 @@ const MAYBES = [
   ['🧽', "Bar tab: can't pay? Wash dishes in the kitchen until the chef lets you go", 'LIVE ✅'],
   ['🍺', 'Dave remembers you: he borrows chips off your rack and texts you "u up? 🎰"', 'LIVE ✅'],
   ['🤕', 'Close the tab drunk and wake up hungover in a hotel room with a traffic cone', 'LIVE ✅'],
+  ['📱', 'A phone: text Dave back (and regret it), call a cab, order a kebab, take selfies', 'LIVE ✅'],
+  ['🎩', 'Your own 3D character, and a store full of hats (top-right corner)', 'LIVE ✅'],
   ['🎲', 'Craps, purely so we can say "craps" in the game', 'lol'],
   ['🧓', 'Your grandma, who tells you to stop after 3 losses in a row', 'she insists'],
   ['🎟️', 'Loyalty card: earn points for every fake dollar lost, redeem for nothing', 'unlikely'],
@@ -1254,7 +1259,7 @@ const booze = createBar({
 });
 startWaiter({
   stage: document.querySelector('.stage'),
-  canWalk: () => !fxActive() && !document.body.classList.contains('bonus-active') && !['vip-party-on', 'kitchen-on', 'hangover-on'].some((c) => document.body.classList.contains(c)) && !slots?.isOpen(),
+  canWalk: () => !fxActive() && !document.body.classList.contains('bonus-active') && !['vip-party-on', 'kitchen-on', 'hangover-on', 'phone-on', 'settings-on'].some((c) => document.body.classList.contains(c)) && !slots?.isOpen(),
   onClink: () => sound.clink(),
   pickDrink: booze.pickDrink,
   getTarget: booze.target,
@@ -1282,7 +1287,7 @@ const tab = createTab({
   resume3d: () => !slots?.isOpen() && wheel.resume(),
   isBusy: () =>
     spinning || fxActive() || !!document.querySelector('dialog[open]') ||
-    ['vip-party-on', 'bonus-active', 'hangover-on'].some((c) => document.body.classList.contains(c)),
+    ['vip-party-on', 'bonus-active', 'hangover-on', 'phone-on', 'settings-on'].some((c) => document.body.classList.contains(c)),
 });
 
 // ---------- 🍺 Dave (he remembers you) ----------
@@ -1310,10 +1315,18 @@ const dave = createDave({
     fly(from, rackPoint(1), 1, { onLand: () => { addBank(amount); sound.cash(); } });
     render();
   },
-  isIdle: () =>
+  // (an angry Dave doesn't care that your phone is out: he closes it and comes over anyway)
+  isIdle: (ignorePhone = false) =>
     !spinning && !fxActive() && !slots?.isOpen() && !document.querySelector('dialog[open]') &&
-    !['vip-party-on', 'bonus-active', 'kitchen-on', 'hangover-on'].some((c) => document.body.classList.contains(c)),
+    !['vip-party-on', 'bonus-active', 'kitchen-on', 'hangover-on', 'settings-on'].some((c) => document.body.classList.contains(c)) &&
+    (ignorePhone || !document.body.classList.contains('phone-on')),
+  onSpill: () => {
+    document.body.classList.add('sticky-table');
+    clearTimeout(stickyTimer);
+    stickyTimer = setTimeout(() => document.body.classList.remove('sticky-table'), 40000);
+  },
 });
+let stickyTimer = null;
 
 // ---------- 🤕 the morning after ----------
 const hangover = createHangover({
@@ -1333,6 +1346,77 @@ const hangover = createHangover({
     if (!sound.ctx) return;
     sound.master.gain.setTargetAtTime(on ? 1.9 : 1, sound.ctx.currentTime, 0.3);
   },
+});
+
+// ---------- ⚙️ settings, your character and the store (top-right corner) ----------
+const prefs = {
+  banners: store.get('fr.pref.banners', true),
+  reduceMotion: store.get('fr.pref.motion', false),
+};
+document.body.classList.toggle('reduce-motion', prefs.reduceMotion);
+const settings = createSettings({
+  button: $('profileBtn'),
+  store,
+  sound,
+  toast,
+  getBalance: () => balance,
+  spend: (v) => {
+    balance -= v;
+    render();
+  },
+  pause3d: () => wheel.pause(),
+  resume3d: () => !slots?.isOpen() && wheel.resume(),
+  prefs: [
+    { id: 'sfx', label: '🔊 Sound effects', desc: 'Chips, spins, dings, Dave.', get: () => !sound.muted, set: (on) => sound.muted === on && $('muteBtn').click() },
+    { id: 'music', label: '🎵 Lobby music', desc: 'The big band, and your bottle-party songs.', get: () => musicOn, set: (on) => musicOn !== on && $('musicBtn').click() },
+    {
+      id: 'banners',
+      label: "📱 Dave's text banners",
+      desc: 'Pop-ups when Dave texts. His texts still land on your phone.',
+      get: () => prefs.banners,
+      set: (on) => {
+        prefs.banners = on;
+        store.set('fr.pref.banners', on);
+      },
+    },
+    {
+      id: 'motion',
+      label: '🌀 Reduce motion',
+      desc: 'No screen shake, drunk swaying or walking head-bob.',
+      get: () => prefs.reduceMotion,
+      set: (on) => {
+        prefs.reduceMotion = on;
+        store.set('fr.pref.motion', on);
+        document.body.classList.toggle('reduce-motion', on);
+      },
+    },
+  ],
+});
+
+// ---------- 📱 your phone (and Marco, who delivers food to roulette tables) ----------
+const courier = createCourier({ wheel, dave });
+createPhone({
+  button: $('phoneBtn'),
+  store,
+  sound,
+  toast,
+  booze,
+  dave,
+  hangover,
+  settings,
+  courier,
+  getBalance: () => balance,
+  spend: (v) => {
+    balance -= v;
+    render();
+  },
+  pause3d: () => wheel.pause(),
+  resume3d: () => !slots?.isOpen() && wheel.resume(),
+  canOpen: () =>
+    !spinning && !fxActive() && !document.querySelector('dialog[open]') &&
+    !['vip-party-on', 'bonus-active', 'kitchen-on', 'hangover-on', 'settings-on'].some((c) => document.body.classList.contains(c)),
+  roomVisible: () => !slots?.isOpen(),
+  bannersOn: () => prefs.banners,
 });
 
 // ---------- 🍾 drinks menu + VIP bottle service ----------
