@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SUPER JACKPOT ROULETTE WIN EXTRA BIG</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;800;900&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-name">Super Jackpot Roulette <em>Win Extra Big</em></span> <span class="tag">play money only</span></div>
+    <div class="wallet">
+      <div class="stat"><span>Balance</span><strong id="balance">$0</strong></div>
+      <div class="stat"><span>On table</span><strong id="onTable">$0</strong></div>
+      <div class="stat"><span>Session</span><strong id="session">$0</strong></div>
+      <button id="addFundsBtn" class="btn gold">+ Add funds</button>
+      <button id="musicBtn" class="btn icon" aria-label="Toggle lobby music">🎵</button>
+      <button id="muteBtn" class="btn icon" title="Toggle sound effects" aria-label="Toggle sound effects">🔊</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="stage">
+      <div id="wheel"></div>
+      <div class="history" id="history" aria-label="Recent numbers"></div>
+      <div class="result" id="result" aria-live="polite"></div>
+    </section>
+
+    <section class="table-area">
+      <div class="table-layout">
+        <div class="board-wrap">
+          <div class="board" id="board"></div>
+        </div>
+        <aside class="rack" id="rack" aria-label="Your chips">
+          <div class="rack-head"><span>Your chips</span><strong id="rackTotal">$0</strong></div>
+          <div class="rack-cols" id="rackCols"></div>
+          <div class="rack-hint">Pick a stack to bet with</div>
+        </aside>
+      </div>
+      <div class="controls">
+        <div class="actions">
+          <button id="undoBtn" class="btn">Undo</button>
+          <button id="clearBtn" class="btn">Clear</button>
+          <button id="rebetBtn" class="btn">Rebet</button>
+          <button id="doubleBtn" class="btn">×2</button>
+          <button id="spinBtn" class="btn spin">SPIN</button>
+        </div>
+      </div>
+      <p class="hint">Click a spot to drop the selected chip · Right-click to take it back · Space to spin</p>
+    </section>
+  </main>
+
+  <dialog class="modal" id="fundsModal">
+    <div class="modal-card">
+      <button class="close" id="closeModal" aria-label="Close">×</button>
+      <h2>Add funds</h2>
+
+      <div class="notice">
+        <strong>This is a fake payment form.</strong> Nothing is charged, stored or sent anywhere.
+        Please don't type a real card — use <code>4242 4242 4242 4242</code>.
+        <button type="button" class="linkbtn" id="fillTest">Fill test card</button>
+      </div>
+
+      <div class="card-preview" id="cardPreview">
+        <div class="cp-top"><div class="emv"></div><div class="cp-brand" id="cpBrand">FAKECARD</div></div>
+        <div class="cp-number" id="cpNumber">•••• •••• •••• ••••</div>
+        <div class="cp-row">
+          <div><small>Card holder</small><span id="cpName">YOUR NAME</span></div>
+          <div><small>Expires</small><span id="cpExp">MM/YY</span></div>
+        </div>
+      </div>
+
+      <form id="fundsForm" novalidate autocomplete="off">
+        <label class="field full">Card number
+          <input id="ccNumber" inputmode="numeric" placeholder="4242 4242 4242 4242" autocomplete="off" spellcheck="false">
+        </label>
+        <label class="field full">Name on card
+          <input id="ccName" placeholder="Lucky Player" autocomplete="off" spellcheck="false">
+        </label>
+        <label class="field">Expiry
+          <input id="ccExp" inputmode="numeric" placeholder="MM/YY" autocomplete="off">
+        </label>
+        <label class="field">CVC
+          <input id="ccCvc" inputmode="numeric" placeholder="123" autocomplete="off">
+        </label>
+
+        <div class="field full">Amount
+          <div class="amounts">
+            <button type="button" class="amount-opt" data-amount="100">$100</button>
+            <button type="button" class="amount-opt" data-amount="500">$500</button>
+            <button type="button" class="amount-opt" data-amount="1000">$1,000</button>
+            <button type="button" class="amount-opt" data-amount="5000">$5,000</button>
+            <input id="ccCustom" inputmode="numeric" placeholder="Other" autocomplete="off" aria-label="Custom amount">
+          </div>
+        </div>
+
+        <p class="form-error full" id="formError" role="alert"></p>
+        <button type="submit" class="btn gold wide full" id="payBtn">Deposit $500</button>
+        <p class="tiny full">Tip: <code>4000 0000 0000 0002</code> always gets declined.</p>
+      </form>
+
+      <div class="state" id="processing" hidden>
+        <div class="spinner"></div>
+        <p>Pretending to contact the bank…</p>
+      </div>
+      <div class="state" id="success" hidden>
+        <div class="check">✓</div>
+        <p><strong id="successAmount">$0</strong> of fake money added</p>
+      </div>
+
+      <button class="linkbtn reset" id="resetBalance" type="button">Reset balance to $1,000</button>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

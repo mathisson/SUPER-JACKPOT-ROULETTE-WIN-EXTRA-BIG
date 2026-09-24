@@ -1,0 +1,896 @@
+import { RouletteWheel, colorOf, RED } from './wheel.js';
+import { celebrate, youDied, winLevel, fxActive, dismissFx } from './fx.js';
+import { LobbyMusic } from './music.js';
+
+const rand = (a, b) => a + Math.random() * (b - a);
+
+// ---------- persistence ----------
+const store = {
+  get(k, d) {
+    try {
+      const v = localStorage.getItem(k);
+      return v == null ? d : JSON.parse(v);
+    } catch {
+      return d;
+    }
+  },
+  set(k, v) {
+    try {
+      localStorage.setItem(k, JSON.stringify(v));
+    } catch {}
+  },
+};
+
+const START_BALANCE = 1000;
+const CHIPS = [1, 5, 25, 100, 500, 1000];
+
+let balance = store.get('fr.balance', START_BALANCE);
+let history = store.get('fr.history', []);
+let session = 0;
+let bets = new Map();      // betKey -> amount
+let actions = [];          // undo stack: { key, amount }
+let lastBets = null;
+let chipValue = 25;
+let spinning = false;
+
+const $ = (id) => document.getElementById(id);
+const money = (n) =>
+  (n < 0 ? '-' : '') + '$' + Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 0 });
+const short = (n) => (n >= 1000 ? (n / 1000).toFixed(n % 1000 ? 1 : 0).replace('.0', '') + 'k' : String(n));
+
+// ---------- sound ----------
+const sound = {
+  ctx: null,
+  muted: store.get('fr.muted', false),
+  ensure() {
+    if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+    return this.ctx;
+  },
+  blip(freq, dur, type = 'sine', vol = 0.2, delay = 0) {
+    if (this.muted) return;
+    const c = this.ensure();
+    const t = c.currentTime + delay;
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(c.destination);
+    o.start(t);
+    o.stop(t + dur);
+  },
+  tick(v) { this.blip(2200 + Math.random() * 800, 0.025, 'square', 0.03 + 0.05 * v); },
+  chip() { this.blip(1100, 0.05, 'triangle', 0.15); this.blip(1600, 0.04, 'triangle', 0.08, 0.02); },
+  win(level = 0) {
+    // rising arpeggio, then a held major chord; bigger wins go higher and ring longer
+    const notes = [523, 659, 784, 1047, 1319, 1568].slice(0, 4 + level);
+    notes.forEach((f, i) => this.blip(f, 0.25, 'triangle', 0.16, i * 0.09));
+    const end = notes.length * 0.09;
+    [523, 659, 784, 1047].forEach((f) => this.blip(f * (level >= 2 ? 2 : 1), 1 + level * 0.4, 'triangle', 0.09, end));
+    for (let i = 0; i < 6 + level * 8; i++) this.blip(rand(2200, 3600), 0.12, 'sine', 0.05, end + i * 0.07);
+    if (level >= 2) this.boom(0.35);
+  },
+  // Continuous ball-on-wood roll: filtered noise whose level, pitch and wobble follow the ball speed.
+  roll: null,
+  noiseBuf() {
+    const c = this.ensure();
+    if (!this._noise) {
+      this._noise = c.createBuffer(1, c.sampleRate * 2, c.sampleRate);
+      const d = this._noise.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    return this._noise;
+  },
+  rollUpdate(speed, trackPos) {
+    const on = speed > 0 && !this.muted;
+    if (!this.roll) {
+      if (!on) return;
+      const c = this.ensure();
+      const src = c.createBufferSource();
+      src.buffer = this.noiseBuf();
+      src.loop = true;
+      // bright "whirr" of the ball on the polished track
+      const bp = c.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.Q.value = 1.4;
+      const whirr = c.createGain();
+      whirr.gain.value = 0;
+      // low rumble through the wooden bowl
+      const lp = c.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 160;
+      const rumble = c.createGain();
+      rumble.gain.value = 0;
+      // wobble once per lap, as the ball passes you
+      const wob = c.createGain();
+      const lfo = c.createOscillator();
+      const lfoDepth = c.createGain();
+      lfoDepth.gain.value = 0.35;
+      lfo.connect(lfoDepth).connect(wob.gain);
+      src.connect(bp).connect(whirr).connect(wob);
+      src.connect(lp).connect(rumble).connect(wob);
+      wob.connect(c.destination);
+      src.start();
+      lfo.start();
+      this.roll = { c, src, lfo, bp, whirr, rumble };
+    }
+    const { c, bp, whirr, rumble, lfo } = this.roll;
+    const t = c.currentTime;
+    const s = on ? speed : 0;
+    whirr.gain.setTargetAtTime(on ? 0.025 + 0.13 * s * (0.5 + 0.5 * trackPos) : 0, t, 0.06);
+    rumble.gain.setTargetAtTime(on ? 0.15 + 0.3 * s : 0, t, 0.08);
+    bp.frequency.setTargetAtTime(500 + 2600 * s * (0.6 + 0.4 * trackPos), t, 0.08);
+    lfo.frequency.setTargetAtTime(1 + 4 * s, t, 0.1);
+    if (!on) {
+      const r = this.roll;
+      this.roll = null;
+      setTimeout(() => { r.src.stop(); r.lfo.stop(); }, 400);
+    }
+  },
+  clack() {
+    // wooden "tock" as the ball hits a diamond deflector
+    if (this.muted) return;
+    const c = this.ensure();
+    const t = c.currentTime;
+    const src = c.createBufferSource();
+    src.buffer = this.noiseBuf();
+    const bp = c.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 1500;
+    bp.Q.value = 3;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.5, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+    src.connect(bp).connect(g).connect(c.destination);
+    src.start(t, Math.random(), 0.1);
+    this.blip(820, 0.06, 'sine', 0.2);
+    this.blip(1250, 0.05, 'triangle', 0.1, 0.09);
+  },
+  boom(vol = 0.5, delay = 0) {
+    if (this.muted) return;
+    const c = this.ensure();
+    const t = c.currentTime + delay;
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.frequency.setValueAtTime(120, t);
+    o.frequency.exponentialRampToValueAtTime(30, t + 1.2);
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.6);
+    o.connect(g).connect(c.destination);
+    o.start(t);
+    o.stop(t + 1.6);
+  },
+  died() {
+    // deep impact followed by a slow, mournful drone
+    if (this.muted) return;
+    this.boom(0.7);
+    const c = this.ensure();
+    const t = c.currentTime + 0.15;
+    [[73.4, 'sawtooth', 0.05], [110, 'triangle', 0.08], [87.3, 'sine', 0.1]].forEach(([f, type, vol]) => {
+      const o = c.createOscillator();
+      const g = c.createGain();
+      const lp = c.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 600;
+      o.type = type;
+      o.frequency.setValueAtTime(f, t);
+      o.frequency.linearRampToValueAtTime(f * 0.94, t + 3.5);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.9);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 3.8);
+      o.connect(lp).connect(g).connect(c.destination);
+      o.start(t);
+      o.stop(t + 3.9);
+    });
+  },
+  cash() { [880, 1320, 1760].forEach((f, i) => this.blip(f, 0.15, 'sine', 0.15, i * 0.07)); },
+};
+
+// ---------- bet definitions ----------
+const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+const ALL = range(1, 36);
+const BETS = {};
+for (let n = 0; n <= 36; n++) BETS['n' + n] = { label: String(n), covers: [n], pays: 35 };
+Object.assign(BETS, {
+  low:    { label: '1 to 18',  covers: range(1, 18), pays: 1 },
+  high:   { label: '19 to 36', covers: range(19, 36), pays: 1 },
+  even:   { label: 'EVEN',     covers: ALL.filter((n) => n % 2 === 0), pays: 1 },
+  odd:    { label: 'ODD',      covers: ALL.filter((n) => n % 2 === 1), pays: 1 },
+  red:    { label: 'RED',      covers: ALL.filter((n) => RED.has(n)), pays: 1 },
+  black:  { label: 'BLACK',    covers: ALL.filter((n) => !RED.has(n)), pays: 1 },
+  dozen1: { label: '1st 12',   covers: range(1, 12), pays: 2 },
+  dozen2: { label: '2nd 12',   covers: range(13, 24), pays: 2 },
+  dozen3: { label: '3rd 12',   covers: range(25, 36), pays: 2 },
+  col1:   { label: '2 to 1',   covers: ALL.filter((n) => n % 3 === 1), pays: 2 },
+  col2:   { label: '2 to 1',   covers: ALL.filter((n) => n % 3 === 2), pays: 2 },
+  col3:   { label: '2 to 1',   covers: ALL.filter((n) => n % 3 === 0), pays: 2 },
+});
+
+// ---------- board ----------
+const board = $('board');
+const cells = {};
+
+function addCell(key, col, row, cls = '') {
+  const el = document.createElement('button');
+  el.type = 'button';
+  el.className = 'cell ' + cls;
+  el.dataset.key = key;
+  el.style.gridColumn = col;
+  el.style.gridRow = row;
+  el.innerHTML = `<span class="label">${BETS[key].label}</span><span class="stack"></span>`;
+  board.appendChild(el);
+  cells[key] = el;
+}
+
+addCell('n0', '1', '1 / 4', 'num green zero');
+for (let n = 1; n <= 36; n++) {
+  addCell('n' + n, String(Math.ceil(n / 3) + 1), String(3 - ((n - 1) % 3)), 'num ' + colorOf(n));
+}
+addCell('col3', '14', '1', 'outside');
+addCell('col2', '14', '2', 'outside');
+addCell('col1', '14', '3', 'outside');
+addCell('dozen1', '2 / 6', '4', 'outside');
+addCell('dozen2', '6 / 10', '4', 'outside');
+addCell('dozen3', '10 / 14', '4', 'outside');
+[['low', 2], ['even', 4], ['red', 6], ['black', 8], ['odd', 10], ['high', 12]].forEach(([k, c]) =>
+  addCell(k, `${c} / ${c + 2}`, '5', 'outside ' + (k === 'red' || k === 'black' ? 'swatch ' + k : ''))
+);
+cells.red.querySelector('.label').innerHTML = '<i class="diamond red"></i>';
+cells.black.querySelector('.label').innerHTML = '<i class="diamond black"></i>';
+
+board.addEventListener('click', (e) => {
+  const cell = e.target.closest('.cell');
+  if (cell) placeBet(cell.dataset.key);
+});
+board.addEventListener('contextmenu', (e) => {
+  const cell = e.target.closest('.cell');
+  if (!cell) return;
+  e.preventDefault();
+  removeBet(cell.dataset.key);
+});
+board.addEventListener('mouseover', (e) => {
+  const cell = e.target.closest('.cell');
+  board.querySelectorAll('.covered').forEach((c) => c.classList.remove('covered'));
+  if (cell && cell.classList.contains('outside')) {
+    BETS[cell.dataset.key].covers.forEach((n) => cells['n' + n].classList.add('covered'));
+  }
+});
+board.addEventListener('mouseleave', () =>
+  board.querySelectorAll('.covered').forEach((c) => c.classList.remove('covered'))
+);
+
+// ---------- chips: rack, spot stacks, flying chips ----------
+// What is *drawn* can lag the real state while chips are in the air; once nothing
+// is flying, render() snaps the drawing back to the real balance and bets.
+const shown = { bank: balance, spots: new Map() };
+let inflight = 0;
+
+const DESC = [...CHIPS].reverse();
+function breakdown(amount) {
+  const out = [];
+  let a = Math.floor(amount);
+  for (const c of DESC) while (a >= c) { out.push(c); a -= c; }
+  return out;
+}
+function countsOf(amount) {
+  const m = {};
+  let a = Math.floor(Math.max(0, amount));
+  for (const c of DESC) { m[c] = Math.floor(a / c); a -= m[c] * c; }
+  return m;
+}
+// Split an amount into at most `max` flying chips (the last one carries any remainder)
+function pieces(amount, max = 6) {
+  const b = breakdown(amount);
+  if (b.length <= max) return b.map((v) => ({ value: v, denom: v }));
+  const head = b.slice(0, max - 1).map((v) => ({ value: v, denom: v }));
+  head.push({ value: b.slice(max - 1).reduce((s, v) => s + v, 0), denom: b[max - 1] });
+  return head;
+}
+
+// Rack: one column per denomination, doubling as the chip picker
+const rackCols = {};
+const RACK_VISIBLE = 14;
+CHIPS.forEach((v) => {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'rack-col';
+  b.dataset.value = v;
+  b.innerHTML = `<span class="rack-stack"></span><span class="rack-count"></span>`;
+  b.addEventListener('click', () => {
+    chipValue = v;
+    renderRack();
+  });
+  $('rackCols').appendChild(b);
+  rackCols[v] = b;
+});
+
+function renderRack() {
+  const counts = countsOf(shown.bank);
+  CHIPS.forEach((v) => {
+    const col = rackCols[v];
+    const vis = Math.min(counts[v], RACK_VISIBLE);
+    const stack = col.querySelector('.rack-stack');
+    if (stack.childElementCount !== vis) {
+      stack.innerHTML = Array.from({ length: vis }, (_, i) => `<i class="pchip c${v}" style="--i:${i}"></i>`).join('');
+    }
+    col.querySelector('.rack-count').innerHTML = `<b>${short(v)}</b>×${counts[v]}`;
+    col.classList.toggle('active', v === chipValue);
+    col.classList.toggle('empty', v > balance);
+    col.title = `${money(v)} chips: ${counts[v]}`;
+  });
+  $('rackTotal').textContent = money(shown.bank);
+}
+
+function renderSpot(key) {
+  const amt = shown.spots.get(key) || 0;
+  const stack = cells[key].querySelector('.stack');
+  if (amt <= 0) {
+    stack.innerHTML = '';
+    return;
+  }
+  const chips = breakdown(amt).slice(0, 7).reverse(); // biggest chip on top
+  stack.innerHTML =
+    chips.map((c, i) => `<i class="schip c${c}" style="--i:${i}"></i>`).join('') +
+    `<span class="stack-label" style="--n:${chips.length - 1}">${short(amt)}</span>`;
+}
+function addSpot(key, v) {
+  shown.spots.set(key, (shown.spots.get(key) || 0) + v);
+  renderSpot(key);
+}
+function addBank(v) {
+  shown.bank += v;
+  renderRack();
+}
+
+const centerOf = (el) => {
+  const r = el.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+};
+const rackPoint = (v) => () => {
+  const r = rackCols[v].querySelector('.rack-stack').getBoundingClientRect();
+  const n = Math.min(countsOf(shown.bank)[v], RACK_VISIBLE);
+  return { x: r.left + r.width / 2, y: r.bottom - 12 - n * 5 };
+};
+const dealerPoint = () => {
+  const r = $('wheel').getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height * 0.5 };
+};
+const resolvePoint = (p) => (p instanceof Element ? centerOf(p) : typeof p === 'function' ? p() : p);
+
+/** Throw one chip along an arc from `from` to `to` (elements, points or point getters). */
+function fly(from, to, denom, { delay = 0, onStart, onLand, fade = false } = {}) {
+  inflight++;
+  setTimeout(() => {
+    onStart?.();
+    const a = resolvePoint(from);
+    const b = resolvePoint(to);
+    const el = document.createElement('i');
+    el.className = `fly-chip c${denom}`;
+    document.body.appendChild(el);
+    const dist = Math.hypot(b.x - a.x, b.y - a.y);
+    const mid = { x: (a.x + b.x) / 2, y: Math.min(a.y, b.y) - Math.min(170, 50 + dist * 0.25) };
+    const spin = (Math.random() < 0.5 ? -1 : 1) * 360;
+    const frames = [];
+    for (let k = 0; k <= 10; k++) {
+      const t = k / 10;
+      const x = (1 - t) ** 2 * a.x + 2 * (1 - t) * t * mid.x + t * t * b.x;
+      const y = (1 - t) ** 2 * a.y + 2 * (1 - t) * t * mid.y + t * t * b.y;
+      const s = 1 + 0.35 * Math.sin(Math.PI * t);
+      frames.push({
+        transform: `translate(${x - 17}px, ${y - 17}px) scale(${s}) rotate(${spin * t}deg)`,
+        opacity: fade && t > 0.6 ? 1 - (t - 0.6) / 0.4 : 1,
+      });
+    }
+    const dur = 380 + Math.min(260, dist * 0.25);
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      el.remove();
+      onLand?.();
+      if (--inflight === 0) render();
+    };
+    el.animate(frames, { duration: dur, easing: 'cubic-bezier(0.4, 0, 0.3, 1)' }).onfinish = finish;
+    setTimeout(finish, dur + 400); // in case animations are throttled (background tab)
+  }, delay);
+}
+
+/** Chips leave the rack and land on a betting spot. */
+function throwToSpot(key, amount, delay = 0) {
+  addBank(-amount);
+  pieces(amount).forEach((p, i) =>
+    fly(rackPoint(p.denom)(), cells[key], p.denom, {
+      delay: delay + i * 70,
+      onLand: () => {
+        addSpot(key, p.value);
+        sound.chip();
+      },
+    })
+  );
+}
+/** Chips on a spot go back to the rack. */
+function returnToRack(key, amount, delay = 0) {
+  pieces(amount).forEach((p, i) =>
+    fly(cells[key], rackPoint(p.denom), p.denom, {
+      delay: delay + i * 60,
+      onStart: () => addSpot(key, -p.value),
+      onLand: () => {
+        addBank(p.value);
+        sound.chip();
+      },
+    })
+  );
+}
+
+// ---------- betting actions ----------
+const totalBets = () => [...bets.values()].reduce((a, b) => a + b, 0);
+
+function clearHighlights() {
+  board.querySelectorAll('.winner, .won, .lost').forEach((c) => c.classList.remove('winner', 'won', 'lost'));
+}
+
+function placeBet(key, amount = chipValue, record = true, delay = 0) {
+  if (spinning) return false;
+  if (balance < amount) {
+    toast('Not enough balance — add some fake funds');
+    $('addFundsBtn').classList.add('pulse');
+    return false;
+  }
+  clearHighlights();
+  balance -= amount;
+  bets.set(key, (bets.get(key) || 0) + amount);
+  if (record) actions.push({ key, amount });
+  throwToSpot(key, amount, delay);
+  render();
+  return true;
+}
+
+function removeBet(key) {
+  if (spinning || !bets.has(key)) return;
+  const amt = bets.get(key);
+  balance += amt;
+  bets.delete(key);
+  actions = actions.filter((a) => a.key !== key);
+  returnToRack(key, amt);
+  render();
+}
+
+$('undoBtn').addEventListener('click', () => {
+  if (spinning || !actions.length) return;
+  const { key, amount } = actions.pop();
+  const left = bets.get(key) - amount;
+  left > 0 ? bets.set(key, left) : bets.delete(key);
+  balance += amount;
+  returnToRack(key, amount);
+  render();
+});
+
+$('clearBtn').addEventListener('click', () => {
+  if (spinning) return;
+  [...bets.entries()].forEach(([key, amt], i) => returnToRack(key, amt, i * 50));
+  balance += totalBets();
+  bets.clear();
+  actions = [];
+  render();
+});
+
+$('rebetBtn').addEventListener('click', () => {
+  if (spinning || !lastBets) return;
+  const need = [...lastBets.values()].reduce((a, b) => a + b, 0);
+  if (need > balance) return toast(`Rebet needs ${money(need)} — you have ${money(balance)}`);
+  [...lastBets.entries()].forEach(([key, amt], i) => placeBet(key, amt, true, i * 90));
+});
+
+$('doubleBtn').addEventListener('click', () => {
+  if (spinning || !bets.size) return;
+  const need = totalBets();
+  if (need > balance) return toast(`Doubling needs another ${money(need)}`);
+  [...bets.entries()].forEach(([key, amt], i) => placeBet(key, amt, true, i * 90));
+});
+
+// ---------- spin ----------
+const wheel = new RouletteWheel($('wheel'), {
+  onTick: (v) => sound.tick(v),
+  onRoll: (speed, trackPos) => sound.rollUpdate(speed, trackPos),
+  onClack: () => sound.clack(),
+});
+// Frames stop while the tab is hidden, so don't leave the roll droning
+document.addEventListener('visibilitychange', () => document.hidden && sound.rollUpdate(0, 0));
+
+function randomNumber() {
+  // unbiased 0..36 using the crypto RNG
+  const buf = new Uint32Array(1);
+  const limit = Math.floor(0xffffffff / 37) * 37;
+  do crypto.getRandomValues(buf);
+  while (buf[0] >= limit);
+  return buf[0] % 37;
+}
+
+$('spinBtn').addEventListener('click', spin);
+document.addEventListener('keydown', (e) => {
+  if ((e.code === 'Space' || e.code === 'Escape') && fxActive()) {
+    e.preventDefault();
+    return dismissFx();
+  }
+  if (e.code === 'Space' && !$('fundsModal').open && document.activeElement.tagName !== 'INPUT') {
+    e.preventDefault();
+    spin();
+  }
+});
+
+async function spin() {
+  if (spinning) return;
+  if (!bets.size) return toast('Place a bet first');
+  sound.ensure();
+  spinning = true;
+  lastBets = new Map(bets);
+  hideResult();
+  render();
+
+  const result = await wheel.spin(randomNumber());
+  settle(result);
+}
+
+function settle(n) {
+  const staked = totalBets();
+  let returned = 0;
+  [...bets.entries()].forEach(([key, amt], k) => {
+    const win = BETS[key].covers.includes(n);
+    cells[key].classList.add(win ? 'won' : 'lost');
+    if (win) {
+      // dealer pays out onto the spot, then the whole stack comes home to the rack
+      const payout = amt * BETS[key].pays;
+      returned += amt + payout;
+      pieces(payout, 5).forEach((p, i) =>
+        fly(dealerPoint, cells[key], p.denom, {
+          delay: 300 + k * 90 + i * 80,
+          onLand: () => { addSpot(key, p.value); sound.chip(); },
+        })
+      );
+      pieces(amt + payout, 8).forEach((p, i) =>
+        fly(cells[key], rackPoint(p.denom), p.denom, {
+          delay: 1500 + k * 90 + i * 70,
+          onStart: () => addSpot(key, -p.value),
+          onLand: () => { addBank(p.value); sound.chip(); },
+        })
+      );
+    } else {
+      // losing chips are swept off to the wheel
+      pieces(amt, 5).forEach((p, i) =>
+        fly(cells[key], dealerPoint, p.denom, {
+          delay: 600 + k * 60 + i * 60,
+          onStart: () => addSpot(key, -p.value),
+          fade: true,
+        })
+      );
+    }
+  });
+  bets.clear();
+  actions = [];
+  cells['n' + n].classList.add('winner');
+  const net = returned - staked;
+  balance += returned;
+  session += net;
+
+  history.unshift(n);
+  history = history.slice(0, 18);
+  store.set('fr.history', history);
+
+  showResult(n, net, returned);
+  if (net > 0) {
+    const level = winLevel(net, staked);
+    const r = cells['n' + n].getBoundingClientRect();
+    celebrate({ net, level, origin: { x: innerWidth / 2, y: Math.min(r.top, innerHeight * 0.4) } });
+    wheel.flash(level);
+    sound.win(level);
+    music.duck(0.35, 2 + level);
+  } else if (net < 0) {
+    setTimeout(() => {
+      youDied({ lost: -net, broke: balance < 1 });
+      sound.died();
+      music.duck(0, 4);
+    }, 350);
+  }
+
+  setTimeout(() => {
+    spinning = false;
+    render();
+    if (balance < 1) {
+      toast('Out of chips! Top up with a fake card');
+      $('addFundsBtn').classList.add('pulse');
+    }
+  }, 1800);
+  render();
+}
+
+function showResult(n, net, returned) {
+  const el = $('result');
+  const c = colorOf(n);
+  const text =
+    net > 0 ? `<span>You win <b>${money(net)}</b></span>` :
+    net < 0 ? (returned ? `<span>Back ${money(returned)} · net <b>${money(net)}</b></span>` : `<span>You lose <b>${money(-net)}</b></span>`) :
+    '<span>Push — you broke even</span>';
+  el.className = 'result show ' + (net > 0 ? 'win' : net < 0 ? 'lose' : '');
+  el.innerHTML = `<div class="ball-num ${c}">${n}</div>
+    <div class="result-text"><small>${c.toUpperCase()}${n ? ' · ' + (n % 2 ? 'ODD' : 'EVEN') : ''}</small>${text}</div>`;
+}
+function hideResult() {
+  $('result').className = 'result';
+}
+
+// ---------- render ----------
+function render() {
+  $('balance').textContent = money(balance);
+  $('onTable').textContent = money(totalBets());
+  const s = $('session');
+  s.textContent = (session > 0 ? '+' : '') + money(session);
+  s.className = session > 0 ? 'pos' : session < 0 ? 'neg' : '';
+
+  if (!inflight) {
+    shown.bank = balance;
+    shown.spots = new Map(bets);
+  }
+  for (const key in cells) {
+    const amt = bets.get(key);
+    renderSpot(key);
+    cells[key].title = amt
+      ? `${BETS[key].label}: ${money(amt)} (pays ${BETS[key].pays}:1)`
+      : `${BETS[key].label} — pays ${BETS[key].pays}:1`;
+  }
+
+  $('history').innerHTML = history
+    .map((n, i) => `<span class="h ${colorOf(n)}${i === 0 ? ' latest' : ''}">${n}</span>`)
+    .join('');
+
+  $('spinBtn').disabled = spinning || !bets.size;
+  $('spinBtn').textContent = spinning ? 'No more bets…' : 'SPIN';
+  $('undoBtn').disabled = spinning || !actions.length;
+  $('clearBtn').disabled = spinning || !bets.size;
+  $('rebetBtn').disabled = spinning || !lastBets;
+  $('doubleBtn').disabled = spinning || !bets.size;
+  board.classList.toggle('locked', spinning);
+  renderRack();
+
+  // Stakes still on the felt count as yours until the wheel is spun
+  store.set('fr.balance', spinning ? balance : balance + totalBets());
+}
+
+// ---------- toast ----------
+let toastTimer;
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+// ---------- mute ----------
+function renderMute() {
+  $('muteBtn').textContent = sound.muted ? '🔇' : '🔊';
+}
+$('muteBtn').addEventListener('click', () => {
+  sound.muted = !sound.muted;
+  store.set('fr.muted', sound.muted);
+  renderMute();
+});
+renderMute();
+
+// ---------- lobby music ----------
+const music = new LobbyMusic(() => sound.ensure());
+let musicOn = store.get('fr.music', true);
+function renderMusic() {
+  const b = $('musicBtn');
+  b.classList.toggle('off', !musicOn);
+  b.title = musicOn ? 'Lobby music: on' : 'Lobby music: off';
+}
+$('musicBtn').addEventListener('click', () => {
+  musicOn = !musicOn;
+  store.set('fr.music', musicOn);
+  musicOn ? music.start() : music.stop();
+  renderMusic();
+});
+renderMusic();
+// Browsers only allow audio after a user gesture, so start on the first one.
+const kickoff = () => {
+  if (musicOn) music.start();
+  removeEventListener('pointerdown', kickoff);
+  removeEventListener('keydown', kickoff);
+};
+addEventListener('pointerdown', kickoff);
+addEventListener('keydown', kickoff);
+
+// ---------- fake funds ----------
+const modal = $('fundsModal');
+const form = $('fundsForm');
+const f = {
+  number: $('ccNumber'),
+  name: $('ccName'),
+  exp: $('ccExp'),
+  cvc: $('ccCvc'),
+  custom: $('ccCustom'),
+};
+let depositAmount = 500;
+
+$('addFundsBtn').addEventListener('click', () => {
+  $('addFundsBtn').classList.remove('pulse');
+  resetForm();
+  modal.showModal();
+  f.number.focus();
+});
+$('closeModal').addEventListener('click', () => modal.close());
+modal.addEventListener('click', (e) => {
+  if (e.target === modal) modal.close();
+});
+
+const digits = (s) => s.replace(/\D/g, '');
+
+function brandOf(num) {
+  if (/^4/.test(num)) return 'visa';
+  if (/^(5[1-5]|2[2-7])/.test(num)) return 'mastercard';
+  if (/^3[47]/.test(num)) return 'amex';
+  if (/^6/.test(num)) return 'discover';
+  return '';
+}
+
+function luhn(num) {
+  let sum = 0;
+  for (let i = 0; i < num.length; i++) {
+    let d = +num[num.length - 1 - i];
+    if (i % 2) {
+      d *= 2;
+      if (d > 9) d -= 9;
+    }
+    sum += d;
+  }
+  return num.length >= 13 && sum % 10 === 0;
+}
+
+f.number.addEventListener('input', () => {
+  const d = digits(f.number.value).slice(0, 19);
+  f.number.value = d.replace(/(.{4})/g, '$1 ').trim();
+  updatePreview();
+});
+f.exp.addEventListener('input', () => {
+  let d = digits(f.exp.value).slice(0, 4);
+  if (d.length === 1 && +d > 1) d = '0' + d;
+  f.exp.value = d.length > 2 ? d.slice(0, 2) + '/' + d.slice(2) : d;
+  updatePreview();
+});
+f.cvc.addEventListener('input', () => {
+  f.cvc.value = digits(f.cvc.value).slice(0, 4);
+});
+f.name.addEventListener('input', updatePreview);
+
+document.querySelectorAll('.amount-opt').forEach((b) =>
+  b.addEventListener('click', () => {
+    depositAmount = +b.dataset.amount;
+    f.custom.value = '';
+    updateAmount();
+  })
+);
+f.custom.addEventListener('input', () => {
+  f.custom.value = digits(f.custom.value).slice(0, 6);
+  depositAmount = +f.custom.value || 0;
+  updateAmount();
+});
+
+function updateAmount() {
+  document.querySelectorAll('.amount-opt').forEach((b) =>
+    b.classList.toggle('active', !f.custom.value && +b.dataset.amount === depositAmount)
+  );
+  $('payBtn').textContent = depositAmount ? `Deposit ${money(depositAmount)}` : 'Deposit';
+}
+
+function updatePreview() {
+  const d = digits(f.number.value);
+  const masked = (d + '•'.repeat(Math.max(0, 16 - d.length))).replace(/(.{4})/g, '$1 ').trim();
+  $('cpNumber').textContent = masked;
+  $('cpName').textContent = f.name.value.trim().toUpperCase() || 'YOUR NAME';
+  $('cpExp').textContent = f.exp.value || 'MM/YY';
+  const brand = brandOf(d);
+  $('cardPreview').dataset.brand = brand;
+  $('cpBrand').textContent = brand ? brand.toUpperCase() : 'FAKECARD';
+}
+
+$('fillTest').addEventListener('click', () => {
+  f.number.value = '4242 4242 4242 4242';
+  f.name.value = 'Lucky Player';
+  const y = (new Date().getFullYear() + 3) % 100;
+  f.exp.value = `12/${String(y).padStart(2, '0')}`;
+  f.cvc.value = '123';
+  updatePreview();
+  $('formError').textContent = '';
+});
+
+function resetForm() {
+  form.reset();
+  form.hidden = false;
+  $('processing').hidden = true;
+  $('success').hidden = true;
+  $('formError').textContent = '';
+  form.querySelectorAll('.invalid').forEach((el) => el.classList.remove('invalid'));
+  depositAmount = 500;
+  updateAmount();
+  updatePreview();
+}
+
+function validate() {
+  const errs = [];
+  const mark = (el, bad, msg) => {
+    el.classList.toggle('invalid', bad);
+    if (bad) errs.push(msg);
+  };
+  const num = digits(f.number.value);
+  mark(f.number, !luhn(num), 'Card number is invalid (try 4242 4242 4242 4242)');
+  mark(f.name, !f.name.value.trim(), 'Enter a name');
+  const [mm, yy] = f.exp.value.split('/').map(Number);
+  const now = new Date();
+  const expired =
+    !mm || mm > 12 || yy == null || isNaN(yy) ||
+    2000 + yy < now.getFullYear() || (2000 + yy === now.getFullYear() && mm < now.getMonth() + 1);
+  mark(f.exp, expired, 'Expiry date is invalid or in the past');
+  mark(f.cvc, !/^\d{3,4}$/.test(f.cvc.value), 'CVC must be 3–4 digits');
+  mark(f.custom, depositAmount < 1 || depositAmount > 100000, 'Amount must be between $1 and $100,000');
+  return errs;
+}
+
+form.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const errs = validate();
+  $('formError').textContent = errs[0] || '';
+  if (errs.length) return;
+
+  // Stripe-style "decline" test card, for fun
+  const declined = digits(f.number.value) === '4000000000000002';
+  const amount = depositAmount;
+  // Card details are never stored or sent — wipe them right away.
+  form.reset();
+  updatePreview();
+  form.hidden = true;
+  $('processing').hidden = false;
+
+  setTimeout(() => {
+    $('processing').hidden = true;
+    if (declined) {
+      form.hidden = false;
+      updateAmount();
+      $('formError').textContent = 'Card declined (that’s the decline test card 😉)';
+      return;
+    }
+    balance += amount;
+    // once the dialog closes, the cashier's chips fly into your rack
+    pieces(amount, 10).forEach((p, i) =>
+      fly($('addFundsBtn'), rackPoint(p.denom), p.denom, {
+        delay: 1550 + i * 90,
+        onLand: () => { addBank(p.value); sound.chip(); },
+      })
+    );
+    render();
+    sound.cash();
+    $('successAmount').textContent = money(amount);
+    $('success').hidden = false;
+    setTimeout(() => modal.open && modal.close(), 1400);
+    toast(`+${money(amount)} fake dollars added`);
+  }, 1300);
+});
+
+$('resetBalance').addEventListener('click', () => {
+  if (spinning) return;
+  if (!confirm(`Reset balance to ${money(START_BALANCE)} and clear history?`)) return;
+  bets.clear();
+  actions = [];
+  lastBets = null;
+  balance = START_BALANCE;
+  session = 0;
+  history = [];
+  store.set('fr.history', history);
+  clearHighlights();
+  hideResult();
+  render();
+  modal.close();
+});
+
+render();

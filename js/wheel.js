@@ -1,0 +1,417 @@
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+// European single-zero wheel order, clockwise when viewed from above.
+export const WHEEL_ORDER = [
+  0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10,
+  5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26,
+];
+export const RED = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
+export const colorOf = (n) => (n === 0 ? 'green' : RED.has(n) ? 'red' : 'black');
+
+const N = WHEEL_ORDER.length;
+const STEP = (Math.PI * 2) / N;
+const TAU = Math.PI * 2;
+
+// Radii / heights (world units)
+const R_IN = 2.2;        // inner edge of pockets
+const R_POCKET = 3.0;    // pockets end, number ring starts
+const R_OUT = 3.4;       // outer edge of rotating disc
+const R_BALL_POCKET = 2.6;
+const R_TRACK = 3.86;
+const DISC_Y = 0.02;
+const BALL_R = 0.1;
+
+// Profile of the static bowl's sloped apron, used to keep the ball on the surface.
+const APRON = [[3.4, DISC_Y], [3.45, 0.06], [3.9, 0.34], [4.0, 0.36]];
+function surfaceY(r) {
+  if (r <= APRON[0][0]) return DISC_Y;
+  for (let i = 1; i < APRON.length; i++) {
+    const [r1, y1] = APRON[i];
+    const [r0, y0] = APRON[i - 1];
+    if (r <= r1) return y0 + ((r - r0) / (r1 - r0)) * (y1 - y0);
+  }
+  return APRON[APRON.length - 1][1];
+}
+
+const smooth = (t) => t * t * (3 - 2 * t);
+const lerp = (a, b, t) => a + (b - a) * t;
+
+// Angle convention: local angle θ maps to (r cosθ, y, -r sinθ); rotating the wheel
+// group by φ around Y moves that point to world angle θ + φ.
+const polar = (r, a, y = 0) => new THREE.Vector3(r * Math.cos(a), y, -r * Math.sin(a));
+
+export class RouletteWheel {
+  constructor(container, { onTick, onRoll, onClack } = {}) {
+    this.container = container;
+    this.onTick = onTick || (() => {});
+    this.onRoll = onRoll || (() => {}); // (speed 0..1, trackPos 0..1) every frame while spinning
+    this.onClack = onClack || (() => {}); // ball hits a deflector on the way down
+
+    const renderer = (this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    container.appendChild(renderer.domElement);
+
+    this.scene = new THREE.Scene();
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+    this.camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+    this.camera.position.set(0, 8.6, 7.2);
+
+    const controls = (this.controls = new OrbitControls(this.camera, renderer.domElement));
+    controls.target.set(0, 0, 0.2);
+    controls.enableDamping = true;
+    controls.enablePan = false;
+    controls.minDistance = 7;
+    controls.maxDistance = 16;
+    controls.minPolarAngle = 0.15;
+    controls.maxPolarAngle = 1.2;
+
+    this.addLights();
+    this.build();
+
+    this.phi = 0;            // wheel rotation
+    this.idleOmega = 0.3;    // wheel idle speed (rad/s)
+    this.omega = this.idleOmega;
+    this.ballRel = 0;        // ball angle relative to the wheel while resting in a pocket
+    this.anim = null;
+
+    new ResizeObserver(() => this.resize()).observe(container);
+    this.resize();
+
+    this.clock = new THREE.Clock();
+    renderer.setAnimationLoop(() => this.frame());
+  }
+
+  addLights() {
+    this.scene.add(new THREE.HemisphereLight(0xfff2dd, 0x1a1208, 0.5));
+    const key = new THREE.DirectionalLight(0xffffff, 2.4);
+    key.position.set(3, 10, 4);
+    key.castShadow = true;
+    key.shadow.mapSize.set(2048, 2048);
+    const s = key.shadow.camera;
+    s.left = s.bottom = -6;
+    s.right = s.top = 6;
+    s.near = 1;
+    s.far = 25;
+    key.shadow.bias = -0.0005;
+    this.scene.add(key);
+    const warm = new THREE.PointLight(0xffb86b, 18, 20);
+    warm.position.set(-5, 4, -3);
+    this.scene.add(warm);
+    // Gold burst light used by flash() on wins
+    this.glow = new THREE.PointLight(0xffc24a, 0, 14, 1.5);
+    this.glow.position.set(0, 3, 0);
+    this.scene.add(this.glow);
+  }
+
+  build() {
+    const gold = new THREE.MeshStandardMaterial({ color: 0xd9ab52, metalness: 1, roughness: 0.25 });
+    const chrome = new THREE.MeshStandardMaterial({ color: 0xe8e8e8, metalness: 1, roughness: 0.18 });
+    const woodDark = new THREE.MeshStandardMaterial({ color: 0x2b1409, roughness: 0.3, metalness: 0.05 });
+    const woodRim = new THREE.MeshStandardMaterial({ color: 0x6e3314, roughness: 0.38, metalness: 0.05 });
+    const woodCone = new THREE.MeshStandardMaterial({ color: 0x8c4a1c, roughness: 0.32, metalness: 0.05 });
+
+    // Felt table
+    const felt = new THREE.Mesh(
+      new THREE.CircleGeometry(30, 64),
+      new THREE.MeshStandardMaterial({ color: 0x0c4a2b, roughness: 1 })
+    );
+    felt.rotation.x = -Math.PI / 2;
+    felt.position.y = -0.42;
+    felt.receiveShadow = true;
+    this.scene.add(felt);
+
+    // Static bowl: sloped apron (ball track) + wooden rim
+    const lathe = (pts, mat) => {
+      const m = new THREE.Mesh(
+        new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(x, y)), 160),
+        mat
+      );
+      mat.side = THREE.DoubleSide;
+      m.castShadow = m.receiveShadow = true;
+      this.scene.add(m);
+      return m;
+    };
+    lathe([[3.38, -0.42], [3.38, DISC_Y], ...APRON, [4.03, 0.44], [4.06, 0.64]], woodDark);
+    lathe([[4.06, 0.64], [4.3, 0.7], [4.62, 0.62], [4.74, 0.4], [4.74, -0.42]], woodRim);
+    const rimTrim = new THREE.Mesh(new THREE.TorusGeometry(4.3, 0.03, 12, 160), gold);
+    rimTrim.rotation.x = -Math.PI / 2;
+    rimTrim.position.y = 0.705;
+    this.scene.add(rimTrim);
+
+    // Diamond deflectors on the apron
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * TAU + STEP / 2;
+      const d = new THREE.Mesh(new THREE.OctahedronGeometry(1, 0), gold);
+      const r = 3.68;
+      d.position.copy(polar(r, a, surfaceY(r) + 0.03));
+      d.scale.set(i % 2 ? 0.05 : 0.14, 0.045, i % 2 ? 0.14 : 0.05);
+      d.rotation.y = a;
+      d.castShadow = true;
+      this.scene.add(d);
+    }
+
+    // Rotating wheel
+    const wheel = (this.wheel = new THREE.Group());
+    this.scene.add(wheel);
+
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(R_OUT, 3.2, 0.42, 128), woodDark);
+    base.position.y = DISC_Y - 0.212;
+    wheel.add(base);
+
+    const disc = new THREE.Mesh(
+      new THREE.RingGeometry(R_IN, R_OUT, 148, 1),
+      new THREE.MeshStandardMaterial({ map: this.makeDiscTexture(), roughness: 0.35, metalness: 0.1 })
+    );
+    disc.rotation.x = -Math.PI / 2;
+    disc.position.y = DISC_Y;
+    disc.receiveShadow = true;
+    wheel.add(disc);
+
+    for (const [r, t] of [[R_POCKET, 0.012], [R_OUT, 0.03], [R_IN, 0.03]]) {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(r, t, 10, 160), gold);
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.y = DISC_Y + 0.005;
+      wheel.add(ring);
+    }
+
+    // Frets between pockets
+    const fretGeo = new THREE.BoxGeometry(R_POCKET - R_IN, 0.14, 0.025);
+    for (let i = 0; i < N; i++) {
+      const a = i * STEP + STEP / 2;
+      const f = new THREE.Mesh(fretGeo, chrome);
+      f.position.copy(polar((R_IN + R_POCKET) / 2, a, DISC_Y + 0.07));
+      f.rotation.y = a;
+      f.castShadow = true;
+      wheel.add(f);
+    }
+
+    // Centre cone
+    const cone = new THREE.Mesh(
+      new THREE.LatheGeometry(
+        [[2.2, DISC_Y], [2.12, 0.1], [1.6, 0.3], [0.9, 0.45], [0.35, 0.5], [0, 0.5]].map(
+          ([x, y]) => new THREE.Vector2(x, y)
+        ),
+        128
+      ),
+      woodCone
+    );
+    cone.castShadow = cone.receiveShadow = true;
+    wheel.add(cone);
+
+    // Turret
+    const turret = new THREE.Group();
+    const add = (geo, y, mat = gold) => {
+      const m = new THREE.Mesh(geo, mat);
+      m.position.y = y;
+      m.castShadow = true;
+      turret.add(m);
+      return m;
+    };
+    add(new THREE.CylinderGeometry(0.3, 0.38, 0.22, 48), 0.6);
+    add(new THREE.CylinderGeometry(0.07, 0.07, 0.9, 24), 0.95);
+    add(new THREE.SphereGeometry(0.15, 32, 16), 1.42);
+    for (let k = 0; k < 2; k++) {
+      const arm = add(new THREE.CylinderGeometry(0.035, 0.035, 1.7, 16), 0.9);
+      arm.rotation.z = Math.PI / 2;
+      arm.rotation.y = k * (Math.PI / 2);
+    }
+    for (let k = 0; k < 4; k++) {
+      const knob = add(new THREE.SphereGeometry(0.07, 24, 12), 0.9);
+      knob.position.x = Math.cos((k * Math.PI) / 2) * 0.85;
+      knob.position.z = Math.sin((k * Math.PI) / 2) * 0.85;
+    }
+    wheel.add(turret);
+
+    // Ball
+    this.ball = new THREE.Mesh(
+      new THREE.SphereGeometry(BALL_R, 32, 16),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.12, metalness: 0.05 })
+    );
+    this.ball.castShadow = true;
+    this.scene.add(this.ball);
+  }
+
+  makeDiscTexture() {
+    const S = 2048;
+    const c = document.createElement('canvas');
+    c.width = c.height = S;
+    const g = c.getContext('2d');
+    const cx = S / 2;
+    const k = S / 2 / R_OUT;
+    const fill = { red: '#b3121f', black: '#161616', green: '#0e7a3a' };
+
+    // Canvas y points down, so local angle θ is drawn at canvas angle -θ.
+    const sector = (r0, r1, a0, a1) => {
+      g.beginPath();
+      g.arc(cx, cx, r1 * k, -a0, -a1, true);
+      g.arc(cx, cx, r0 * k, -a1, -a0, false);
+      g.closePath();
+    };
+
+    WHEEL_ORDER.forEach((n, i) => {
+      const a0 = i * STEP - STEP / 2;
+      const a1 = a0 + STEP;
+      sector(R_IN, R_OUT, a0, a1);
+      g.fillStyle = fill[colorOf(n)];
+      g.fill();
+    });
+
+    // Darken pockets so they read as recessed
+    const grad = g.createRadialGradient(cx, cx, R_IN * k, cx, cx, R_POCKET * k);
+    grad.addColorStop(0, 'rgba(0,0,0,0.45)');
+    grad.addColorStop(0.5, 'rgba(0,0,0,0.15)');
+    grad.addColorStop(1, 'rgba(0,0,0,0.35)');
+    g.beginPath();
+    g.arc(cx, cx, R_POCKET * k, 0, TAU);
+    g.arc(cx, cx, R_IN * k, 0, TAU, true);
+    g.fillStyle = grad;
+    g.fill();
+
+    // Gold dividers on the number ring
+    g.strokeStyle = '#d9ab52';
+    g.lineWidth = 4;
+    for (let i = 0; i < N; i++) {
+      const a = i * STEP + STEP / 2;
+      g.beginPath();
+      g.moveTo(cx + R_POCKET * k * Math.cos(a), cx - R_POCKET * k * Math.sin(a));
+      g.lineTo(cx + R_OUT * k * Math.cos(a), cx - R_OUT * k * Math.sin(a));
+      g.stroke();
+    }
+
+    // Numbers, top of glyph pointing outward
+    g.fillStyle = '#fff';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.font = 'bold 78px Georgia, "Times New Roman", serif';
+    WHEEL_ORDER.forEach((n, i) => {
+      const a = i * STEP;
+      const r = (R_POCKET + R_OUT) / 2;
+      g.save();
+      g.translate(cx + r * k * Math.cos(a), cx - r * k * Math.sin(a));
+      g.rotate(Math.PI / 2 - a);
+      g.fillText(String(n), 0, 4);
+      g.restore();
+    });
+
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
+    return tex;
+  }
+
+  resize() {
+    const w = this.container.clientWidth;
+    const h = this.container.clientHeight;
+    if (!w || !h) return;
+    this.renderer.setSize(w, h);
+    const aspect = w / h;
+    this.camera.aspect = aspect;
+    // Widen FOV on narrow screens so the whole wheel stays in view
+    this.camera.fov = aspect < 1.3 ? Math.min(75, 38 * (1.3 / aspect)) : 38;
+    this.camera.updateProjectionMatrix();
+  }
+
+  /** Gold light pulse + a little extra wheel spin to celebrate a win. */
+  flash(level = 0) {
+    this.glow.intensity = 40 + level * 45;
+    this.omega += 0.8 + level * 0.8;
+  }
+
+  /** Spin and land on `target`. Resolves once the ball has settled. */
+  spin(target) {
+    const idx = WHEEL_ORDER.indexOf(target);
+    const startRel = this.ballRel;
+    const targetRel = idx * STEP;
+    const delta = (((targetRel - startRel) % TAU) + TAU) % TAU;
+    const revs = 7 + Math.floor(Math.random() * 3);
+    this.omega = 2.4 + Math.random() * 0.6;
+    return new Promise((resolve) => {
+      this.anim = {
+        start: performance.now(),
+        T: 7.5 + Math.random(),
+        startRel,
+        endRel: startRel + delta - revs * TAU, // ball travels against the wheel
+        lastPocket: null,
+        resolve,
+      };
+    });
+  }
+
+  frame() {
+    const dt = Math.min(this.clock.getDelta(), 0.05);
+    this.glow.intensity *= Math.exp(-dt * 1.4);
+    this.omega += (this.idleOmega - this.omega) * (1 - Math.exp(-dt * 0.3));
+    this.phi += this.omega * dt;
+    this.wheel.rotation.y = this.phi;
+
+    let rel = this.ballRel;
+    let r = R_BALL_POCKET;
+    let hop = 0;
+
+    const a = this.anim;
+    if (a) {
+      // wall-clock based so a backgrounded tab still finishes on time
+      const u = Math.min((performance.now() - a.start) / 1000 / a.T, 1);
+      const e = 1 - Math.pow(1 - u, 3);
+      rel = a.startRel + (a.endRel - a.startRel) * e;
+
+      if (u < 0.08) {
+        // lifted out of the pocket and launched onto the track
+        const s = smooth(u / 0.08);
+        r = lerp(R_BALL_POCKET, R_TRACK, s);
+        hop = Math.sin(s * Math.PI) * 0.6;
+      } else if (u < 0.6) {
+        r = R_TRACK;
+      } else if (u < 0.74) {
+        // loses speed and spirals down the apron
+        r = lerp(R_TRACK, R_POCKET + 0.08, smooth((u - 0.6) / 0.14));
+      } else {
+        // bounces across the frets before dropping into its pocket
+        const s = (u - 0.74) / 0.26;
+        r = lerp(R_POCKET + 0.08, R_BALL_POCKET, smooth(Math.min(s * 1.6, 1)));
+        hop = Math.abs(Math.sin(s * Math.PI * 3.5)) * 0.22 * Math.pow(1 - s, 2);
+        const j = Math.max(0, 1 - s / 0.8);
+        rel += Math.sin(s * 38) * 0.12 * j * j;
+
+        const pocket = Math.round((((rel % TAU) + TAU) % TAU) / STEP) % N;
+        if (pocket !== a.lastPocket) {
+          if (a.lastPocket !== null) this.onTick(1 - s);
+          a.lastPocket = pocket;
+        }
+      }
+
+      // Ball speed over the ground (rad/s), normalised to roughly 0..1 for the audio
+      const relSpeed = ((a.endRel - a.startRel) * 3 * Math.pow(1 - u, 2)) / a.T;
+      const speed = Math.min(1, Math.abs(relSpeed + this.omega) / 22);
+      const rolling = u > 0.06 && u < 0.76;
+      // radius drives the tone: bright on the outer track, duller down the apron
+      this.onRoll(rolling ? speed : 0, rolling ? (r - R_POCKET) / (R_TRACK - R_POCKET) : 0);
+      if (u >= 0.67 && !a.clacked) {
+        a.clacked = true;
+        this.onClack();
+      }
+
+      if (u >= 1) {
+        this.ballRel = a.endRel;
+        rel = a.endRel;
+        this.anim = null;
+        this.onRoll(0, 0);
+        a.resolve(WHEEL_ORDER[Math.round((((rel % TAU) + TAU) % TAU) / STEP) % N]);
+      }
+    }
+
+    const beta = this.phi + rel;
+    this.ball.position.copy(polar(r, beta, surfaceY(r) + BALL_R + hop));
+
+    this.controls.update();
+    this.renderer.render(this.scene, this.camera);
+  }
+}
