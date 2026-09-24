@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { Stage3D } from './kitchen3d.js';
+import { caseMaterial, wallpaperTexture } from './skins.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 
@@ -102,6 +103,47 @@ export const CATALOG = [
   { id: 'backpack', slot: 'back', name: 'GrubGrab Backpack', emoji: '🎒', price: 250, note: 'Straight off Marco. He knows.' },
   { id: 'cape', slot: 'back', name: 'Superhero Cape', emoji: '🦸', price: 900 },
   { id: 'wings', slot: 'back', name: 'Angel Wings', emoji: '🪽', price: 1500 },
+
+  // your phone
+  { id: 'graphite', slot: 'phoneSkin', name: 'Stock Graphite', emoji: '📱', price: 0 },
+  { id: 'cracked', slot: 'phoneSkin', name: 'Cracked Screen', emoji: '💔', price: 50, note: 'It still works. Mostly.' },
+  { id: 'banana', slot: 'phoneSkin', name: 'Banana Phone', emoji: '🍌', price: 150, note: 'Ring ring ring ring.' },
+  { id: 'leopard', slot: 'phoneSkin', name: 'Leopard Case', emoji: '🐆', price: 300 },
+  { id: 'neon', slot: 'phoneSkin', name: 'Neon Case', emoji: '💡', price: 400, note: 'Glows in the dark casino.' },
+  { id: 'dave', slot: 'phoneSkin', name: 'Dave Case', emoji: '🍺', price: 777, note: 'Comes with a tiny Dave keychain. He is always with you now.' },
+  { id: 'gold', slot: 'phoneSkin', name: 'Solid Gold Case', emoji: '🥇', price: 800 },
+  { id: 'diamond', slot: 'phoneSkin', name: 'Diamond Case', emoji: '💎', price: 4000, note: 'Forty-four diamonds. Fake. Like the money.' },
+
+  { id: 'neonwall', slot: 'wallpaper', name: 'Neon Nights', emoji: '🌃', price: 0 },
+  { id: 'sunset', slot: 'wallpaper', name: 'Sunset', emoji: '🌅', price: 80 },
+  { id: 'jackpotwall', slot: 'wallpaper', name: '777 Jackpot', emoji: '🎰', price: 100 },
+  { id: 'space', slot: 'wallpaper', name: 'Deep Space', emoji: '🌌', price: 150 },
+  { id: 'selfiewall', slot: 'wallpaper', name: 'Your Best Selfie', emoji: '🤳', price: 200, note: 'Your latest selfie, forever on your home screen.' },
+  { id: 'moneywall', slot: 'wallpaper', name: 'Money', emoji: '💵', price: 300 },
+  { id: 'davewall', slot: 'wallpaper', name: 'Dave', emoji: '🍺', price: 1, note: 'Why would you do this.' },
+
+  { id: 'chime', slot: 'ringtone', name: 'Classic Chime', emoji: '🔔', price: 0 },
+  { id: 'quack', slot: 'ringtone', name: 'Quack', emoji: '🦆', price: 75 },
+  { id: 'retro', slot: 'ringtone', name: '8-Bit', emoji: '👾', price: 120 },
+  { id: 'jackpottone', slot: 'ringtone', name: 'Jackpot Ding', emoji: '🎰', price: 150, note: 'Every text from Dave feels like a win. It is not.' },
+  { id: 'airhorn', slot: 'ringtone', name: 'Air Horn', emoji: '📯', price: 200 },
+  { id: 'orchestra', slot: 'ringtone', name: 'Tiny Orchestra', emoji: '🎻', price: 500 },
+
+  // flair
+  { id: 'classic', slot: 'winFx', name: 'Classic Coins', emoji: '🪙', price: 0 },
+  { id: 'chickens', slot: 'winFx', name: 'Rubber Chickens', emoji: '🐔', price: 250 },
+  { id: 'heartsfx', slot: 'winFx', name: 'Hearts', emoji: '💖', price: 300 },
+  { id: 'money', slot: 'winFx', name: 'Money Rain', emoji: '💸', price: 500 },
+  { id: 'daves', slot: 'winFx', name: 'Tiny Daves', emoji: '🍺', price: 777, note: 'Every win, dozens of tiny Daves.' },
+  { id: 'fireworks', slot: 'winFx', name: 'Fireworks', emoji: '🎆', price: 1000 },
+
+  { id: 'wave', slot: 'emote', name: 'Wave', emoji: '👋', price: 0 },
+  { id: 'peace', slot: 'emote', name: 'Peace Sign', emoji: '✌️', price: 50 },
+  { id: 'thumbsup', slot: 'emote', name: 'Thumbs Up', emoji: '👍', price: 60 },
+  { id: 'facepalm', slot: 'emote', name: 'Facepalm', emoji: '🤦', price: 90, note: 'For after the spin.' },
+  { id: 'flex', slot: 'emote', name: 'Flex', emoji: '💪', price: 120 },
+  { id: 'dab', slot: 'emote', name: 'Dab', emoji: '🙆', price: 150, note: "It's 2016 in the casino." },
+  { id: 'moneyrain', slot: 'emote', name: 'Make It Rain', emoji: '💸', price: 400, note: 'Selfies with money falling all around you.' },
 ];
 export const SLOTS = [
   ['top', '👕 Outfit'],
@@ -110,7 +152,14 @@ export const SLOTS = [
   ['neck', '⛓️ Neck'],
   ['held', '✋ In hand'],
   ['back', '🦸 Back'],
+  ['phoneSkin', '📱 Phone case'],
+  ['wallpaper', '🖼️ Wallpaper'],
+  ['ringtone', '🔔 Ringtone'],
+  ['winFx', '🎉 Win style'],
+  ['emote', '🤳 Selfie emote'],
 ];
+/** Slots you always have something in (no "None"). */
+export const REQUIRED_SLOTS = new Set(['top', 'phoneSkin', 'wallpaper', 'ringtone', 'winFx', 'emote']);
 
 export const DEFAULT_LOOK = {
   skin: '#f1c27d',
@@ -128,6 +177,11 @@ export const DEFAULT_LOOK = {
   shoes: '#f4f4f4',
   held: null,
   back: null,
+  phoneSkin: 'graphite',
+  wallpaper: 'neonwall',
+  ringtone: 'chime',
+  winFx: 'classic',
+  emote: 'wave',
 };
 
 // ---------- the model (same build as Dave: root at the waist, feet on the floor at -1.46) ----------
@@ -1014,7 +1068,36 @@ function buildBack(id, body, bx, bz) {
  * Build your character. Same skeleton as Dave: { root, body, head, armL, armR, legs }.
  * The root sits at the waist; feet are 1.46 below it (times the scale).
  */
-export function buildAvatar(look = DEFAULT_LOOK) {
+/** A little phone in your character's hand, to show off a case and wallpaper on the turntable. */
+function buildHandPhone(look, arm) {
+  const g = new THREE.Group();
+  g.position.set(0, -1.12, 0.1);
+  g.rotation.x = 1.1; // the arm is raised; keep the phone upright, screen towards the viewer
+  arm.add(g);
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.44, 0.03), new THREE.MeshStandardMaterial({ color: 0x2b2d33, metalness: 0.85, roughness: 0.3 }));
+  g.add(body);
+  const cm = caseMaterial(look.phoneSkin);
+  if (cm) {
+    const shell = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.48, 0.05), cm);
+    shell.position.z = -0.012;
+    g.add(shell);
+  }
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.41), new THREE.MeshBasicMaterial({ map: wallpaperTexture(look.wallpaper.replace(/wall$/, '')), toneMapped: false }));
+  screen.position.z = 0.017;
+  g.add(screen);
+  if (look.phoneSkin === 'cracked') {
+    const crack = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.41), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35, wireframe: true }));
+    crack.position.z = 0.018;
+    g.add(crack);
+  }
+  return g;
+}
+
+/**
+ * Build your character.
+ * opts.phoneInHand: hold your phone up (the store's phone-case preview)
+ */
+export function buildAvatar(look = DEFAULT_LOOK, opts = {}) {
   look = { ...DEFAULT_LOOK, ...look }; // older saves (and couriers) may not have every field
   const skin = mat(look.skin, { roughness: 0.65 });
   const top = topMaterial(look);
@@ -1155,9 +1238,27 @@ export function buildAvatar(look = DEFAULT_LOOK) {
   buildNeck(look.neck, body, bx, bz);
   buildHeld(look.held, armL.g); // left hand: the right one holds your phone in selfies
   buildBack(look.back, body, bx, bz);
+  if (opts.phoneInHand) buildHandPhone(look, armR.g);
+
+  // fingers for emotes (hidden until an emote needs them): a V sign, and a thumb
+  const fingerMat = skin;
+  const peace = new THREE.Group();
+  for (const side of [-1, 1]) {
+    const f = new THREE.Mesh(new THREE.CapsuleGeometry(0.03, 0.14, 3, 6), fingerMat);
+    f.position.set(side * 0.045, -1.13, 0);
+    f.rotation.z = side * 0.3;
+    peace.add(f);
+  }
+  peace.visible = false;
+  armL.g.add(peace);
+  const thumb = new THREE.Mesh(new THREE.CapsuleGeometry(0.035, 0.1, 3, 6), fingerMat);
+  thumb.position.set(0, -0.95, 0.16);
+  thumb.rotation.x = Math.PI / 2;
+  thumb.visible = false;
+  armL.g.add(thumb);
 
   root.traverse((o) => o.isMesh && (o.castShadow = true));
-  return { root, body, head, armL, armR, legs, holding: !!look.held };
+  return { root, body, head, armL, armR, legs, holding: !!look.held, phoneInHand: !!opts.phoneInHand, props: { peace, thumb } };
 }
 
 /** Throw a character away (geometries, materials, textures). */
@@ -1172,19 +1273,57 @@ export function disposeAvatar(a) {
   a?.root.removeFromParent();
 }
 
-/** Idle life: breathe, look around, the odd little bounce. */
-export function animateAvatar(a, t, { pose = 'idle' } = {}) {
+/** Strike a pose with the left arm (and head). The right arm is busy with the phone in selfies. */
+function applyEmote(a, t, id) {
+  a.props.peace.visible = id === 'peace';
+  a.props.thumb.visible = id === 'thumbsup';
+  const L = a.armL.g.rotation;
+  switch (id) {
+    case 'peace':
+      L.set(-2.5, 0, -0.35);
+      a.head.rotation.z = 0.15;
+      break;
+    case 'thumbsup':
+      L.set(-1.4 + Math.sin(t * 4) * 0.05, 0, -0.15);
+      break;
+    case 'facepalm':
+      L.set(-2.55, 0, 0.62);
+      a.head.rotation.x = 0.35;
+      a.head.rotation.y = 0;
+      break;
+    case 'flex':
+      L.set(0, 0, -2.0 + Math.sin(t * 5) * 0.08);
+      a.head.rotation.y = -0.45;
+      a.body.rotation.z = 0.06;
+      break;
+    case 'dab':
+      L.set(-1.85, 0, 1.1);
+      a.head.rotation.set(0.45, 0.25, -0.35);
+      break;
+    case 'moneyrain':
+    case 'wave':
+    default:
+      L.set(0, 0, -2.5 + Math.sin(t * 7) * 0.3); // a proper wave
+  }
+}
+
+/** Idle life: breathe, look around, the odd little bounce. Pass an emote to strike a pose. */
+export function animateAvatar(a, t, { pose = 'idle', emote = null } = {}) {
   a.body.position.y = Math.sin(t * 2) * 0.02;
   a.body.rotation.z = Math.sin(t * 0.9) * 0.03;
-  a.head.rotation.y = Math.sin(t * 0.6) * 0.25;
-  a.head.rotation.x = Math.sin(t * 0.8) * 0.05;
+  a.head.rotation.set(Math.sin(t * 0.8) * 0.05, Math.sin(t * 0.6) * 0.25, 0);
+  if (a.phoneInHand) a.armR.g.rotation.set(-1.1, 0, 0.15); // showing off the phone
   if (pose === 'selfie') {
     a.armR.g.rotation.set(-1.35, 0, 0.85); // arm out to the side, holding the phone (out of shot)
-    a.armL.g.rotation.set(0.1, 0, -0.1 + Math.sin(t * 3) * 0.3); // a little wave
+    applyEmote(a, t, emote || 'wave');
+  } else if (emote) {
+    if (!a.phoneInHand) a.armR.g.rotation.set(-Math.sin(t * 1.3) * 0.08, 0, 0.12);
+    applyEmote(a, t, emote);
   } else {
+    a.props.peace.visible = a.props.thumb.visible = false;
     // holding something? show it off a little
     a.armL.g.rotation.set(a.holding ? -0.55 + Math.sin(t * 1.3) * 0.05 : Math.sin(t * 1.3) * 0.08, 0, -0.12);
-    a.armR.g.rotation.set(-Math.sin(t * 1.3) * 0.08, 0, 0.12);
+    if (!a.phoneInHand) a.armR.g.rotation.set(-Math.sin(t * 1.3) * 0.08, 0, 0.12);
   }
 }
 
@@ -1277,9 +1416,9 @@ export class AvatarStage extends Stage3D {
     el.addEventListener('pointercancel', up);
   }
 
-  setLook(look) {
+  setLook(look, opts = {}) {
     disposeAvatar(this.avatar);
-    this.avatar = buildAvatar(look);
+    this.avatar = buildAvatar(look, opts);
     // stand exactly on the disc: measure how far below the waist the lowest point (the soles) is
     this.avatar.root.position.y = 0;
     this.avatar.root.updateMatrixWorld(true);
@@ -1289,10 +1428,18 @@ export class AvatarStage extends Stage3D {
     this.pop = 0.35; // a little hop when something changes
   }
 
+  /** Show an emote for a few seconds (the store's try-on). */
+  playEmote(id) {
+    this.emote = id;
+    this.emoteUntil = this.clock.elapsedTime + 4;
+    this.spin = Math.round(this.spin / (Math.PI * 2)) * Math.PI * 2; // face the front for it
+  }
+
   update(dt, t) {
-    if (!this.drag) this.spin += dt * 0.35;
+    if (!this.drag && !this.emote) this.spin += dt * 0.35;
     this.table.rotation.y = this.spin;
-    animateAvatar(this.avatar, t);
+    if (this.emote && t > this.emoteUntil) this.emote = null;
+    animateAvatar(this.avatar, t, { emote: this.emote });
     if (this.pop > 0) {
       this.pop = Math.max(0, this.pop - dt);
       this.avatar.root.position.y = this.restY + Math.sin((1 - this.pop / 0.35) * Math.PI) * 0.25;

@@ -3610,3 +3610,22 @@ body.sticky-table .board::after {
 
 /* ---------- reduce motion (a setting): no shake, sway or head-bob ---------- */
 body.reduce-motion :is(header, main, .stage, .table-area, .slots-view, .rack-col) { animation: none !important; }
+
+/* ================= ✨ Flair: win styles, emotes, phone skins ================= */
+/* your win style flies over everything, including the store's preview */
+.flair-layer { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 58; pointer-events: none; }
+
+/* selfie emotes */
+.cam-emotes { flex: none; display: flex; gap: 6px; justify-content: center; padding: 8px 10px 0; flex-wrap: wrap; }
+.cam-emote { width: 40px; height: 40px; border-radius: 50%; border: 2px solid transparent; background: rgba(255, 255, 255, 0.12); font-size: 20px; padding: 0; }
+.cam-emote.on { border-color: #ffd23f; background: rgba(255, 210, 63, 0.2); }
+
+/* the cracked-screen case: it still works. mostly. */
+.ph-screen.skin-cracked::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 380 800'%3E%3Cg fill='none' stroke='white' stroke-opacity='0.55' stroke-width='1.6'%3E%3Cpath d='M250 520 L310 430 L372 405'/%3E%3Cpath d='M250 520 L205 600 L150 640 L60 700'/%3E%3Cpath d='M250 520 L330 590 L380 610'/%3E%3Cpath d='M250 520 L236 420 L180 330 L140 200'/%3E%3Cpath d='M250 520 L160 505 L40 470'/%3E%3Cpath d='M205 600 L230 690 L220 800'/%3E%3Cpath d='M180 330 L110 340'/%3E%3Cpath d='M310 430 L300 350'/%3E%3Ccircle cx='250' cy='520' r='10'/%3E%3C/g%3E%3C/svg%3E") center/100% 100% no-repeat;
+}

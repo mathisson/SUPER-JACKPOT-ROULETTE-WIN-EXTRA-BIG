@@ -1,5 +1,5 @@
 import { RouletteWheel, colorOf, RED } from './wheel.js';
-import { celebrate, youDied, winLevel, fxActive, dismissFx } from './fx.js';
+import { celebrate, youDied, winLevel, fxActive, dismissFx, setWinFlair } from './fx.js';
 import { LobbyMusic } from './music.js';
 import { startWaiter } from './drinks.js';
 import { bonusDue, offerBonus } from './bonus.js';
@@ -13,6 +13,7 @@ import { createHangover } from './hangover.js';
 import { createSettings } from './settings.js';
 import { createCourier } from './courier.js';
 import { createPhone } from './phone.js';
+import { createFlair } from './flair3d.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 
@@ -1354,7 +1355,14 @@ const prefs = {
   reduceMotion: store.get('fr.pref.motion', false),
 };
 document.body.classList.toggle('reduce-motion', prefs.reduceMotion);
+// your win style, flying out over every win (roulette and slots)
+const flair = createFlair();
+let phone = null; // created further down; the store plays ringtones through it
 const settings = createSettings({
+  preview: {
+    tone: (id) => phone?.playTone(id),
+    win: (id) => id !== 'classic' ? flair.burst(id, { x: innerWidth * 0.35, y: innerHeight * 0.45 }, 2) : toast('🪙 The classic: coins and confetti, like always.'),
+  },
   button: $('profileBtn'),
   store,
   sound,
@@ -1393,9 +1401,14 @@ const settings = createSettings({
   ],
 });
 
+setWinFlair(({ level, origin }) => {
+  const style = settings.look().winFx;
+  if (style && style !== 'classic') flair.burst(style, origin, level);
+});
+
 // ---------- 📱 your phone (and Marco, who delivers food to roulette tables) ----------
 const courier = createCourier({ wheel, dave });
-createPhone({
+phone = createPhone({
   button: $('phoneBtn'),
   store,
   sound,

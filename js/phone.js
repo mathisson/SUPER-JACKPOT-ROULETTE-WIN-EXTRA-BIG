@@ -1,8 +1,11 @@
 // 📱 YOUR PHONE: Messages (Dave, who has feelings), a cab home, food delivery and a selfie
 // camera. The handset is 3D (phone3d.js); this file is the phone's apps.
 
+import * as THREE from 'three';
 import { PhoneOverlay, SelfieCam, SCREEN_PX } from './phone3d.js';
-import { REPLIES } from './dave.js';
+import { REPLIES, buildDave } from './dave.js';
+import { WALLPAPERS, playRingtone } from './skins.js';
+import { CATALOG } from './avatar.js';
 import { throwDrink } from './drinks.js';
 
 const money = (n) => '$' + Math.round(n).toLocaleString('en-US');
@@ -20,6 +23,32 @@ const MAX_PHOTOS = 6;
 
 const moodLabel = (m) => (m >= 40 ? '🥰 loves you' : m >= 10 ? '🙂 in a good mood' : m > -25 ? '😐 normal Dave' : m > -45 ? '😒 annoyed' : '😤 FURIOUS');
 const clock = () => new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+let daveWallpaper = null;
+function renderDaveWallpaper() {
+  if (daveWallpaper) return daveWallpaper;
+  const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  r.setSize(380, 800, false);
+  r.toneMapping = THREE.ACESFilmicToneMapping;
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xc0182a);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x552222, 1.2));
+  const key = new THREE.DirectionalLight(0xffffff, 1.6);
+  key.position.set(1, 2, 3);
+  scene.add(key);
+  const d = buildDave();
+  d.root.scale.setScalar(1);
+  d.armL.g.rotation.x = -2.2; // cheers 🍺
+  scene.add(d.root);
+  const cam = new THREE.PerspectiveCamera(32, 380 / 800, 0.1, 50);
+  cam.position.set(0.3, 1.5, 6.5);
+  cam.lookAt(0, 1.2, 0);
+  r.render(scene, cam);
+  daveWallpaper = r.domElement.toDataURL('image/jpeg', 0.85);
+  r.dispose();
+  r.forceContextLoss?.();
+  return daveWallpaper;
+}
 
 /**
  * @param canOpen       () => bool, nothing else is taking over the screen
@@ -63,7 +92,7 @@ export function createPhone({ button, store, sound, toast, booze, dave, hangover
     document.body.appendChild(layer);
     document.body.classList.add('phone-on');
     screen = document.createElement('div');
-    screen.className = 'ph-screen';
+    screen.className = `ph-screen skin-${settings.look().phoneSkin}`;
     screen.style.width = SCREEN_PX.w + 'px';
     screen.style.height = SCREEN_PX.h + 'px';
     screen.innerHTML = `
@@ -73,7 +102,7 @@ export function createPhone({ button, store, sound, toast, booze, dave, hangover
     screen.addEventListener('click', onClick);
     layer.querySelector('.ph-dim').addEventListener('click', close);
     pause3d();
-    overlay = new PhoneOverlay(layer.querySelector('.ph-stage'), screen);
+    overlay = new PhoneOverlay(layer.querySelector('.ph-stage'), screen, { skin: settings.look().phoneSkin });
     overlay.open();
     addEventListener('keydown', onKey, true);
     requestAnimationFrame(() => layer?.classList.add('on'));
@@ -138,11 +167,18 @@ export function createPhone({ button, store, sound, toast, booze, dave, hangover
     }
   }
 
+  function wallpaperCss() {
+    const id = settings.look().wallpaper.replace(/wall$/, '');
+    if (id === 'selfie' && photos.length) return `center/cover no-repeat url(${photos[photos.length - 1]})`;
+    if (id === 'dave') return `center/cover no-repeat url(${renderDaveWallpaper()})`;
+    return (WALLPAPERS[id] || WALLPAPERS.neon).css || WALLPAPERS.neon.css;
+  }
+
   function homeHtml() {
     const n = dave.unread();
     const app = (id, emoji, label, extra = '') => `<button type="button" class="ph-app" data-app="${id}"><span class="ph-icon i-${id}">${emoji}${extra}</span><small>${label}</small></button>`;
     return `
-      <div class="ph-home">
+      <div class="ph-home" style="background:${wallpaperCss()}">
         <div class="ph-clock">${clock()}</div>
         <div class="ph-date">${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</div>
         <div class="ph-grid">
@@ -216,6 +252,9 @@ export function createPhone({ button, store, sound, toast, booze, dave, hangover
     return `
       ${header('Camera', 'selfie mode 🤳')}
       <div class="cam-finder"><canvas class="cam-canvas"></canvas><div class="cam-flash"></div></div>
+      <div class="cam-emotes">${ownedEmotes()
+        .map((e) => `<button type="button" class="cam-emote${e.id === emote ? ' on' : ''}" data-emote="${e.id}" title="${e.name}">${e.emoji}</button>`)
+        .join('')}</div>
       <div class="cam-controls">
         <button type="button" class="cam-look" data-settings title="Change your look">👕</button>
         <button type="button" class="cam-shutter" data-shoot aria-label="Take selfie"></button>
@@ -225,17 +264,22 @@ export function createPhone({ button, store, sound, toast, booze, dave, hangover
   }
 
   // ---------- the selfie camera ----------
+  let emote = settings.look().emote;
+  const ownedEmotes = () => CATALOG.filter((c) => c.slot === 'emote' && settings.owns(c.id));
   function startCamera() {
     const canvas = screen?.querySelector('.cam-canvas');
     if (!canvas) return;
     stopCamera();
-    selfie = new SelfieCam(canvas, { look: settings.look(), drunk: booze.level(), dave: dave.met() && (dave.here() || Math.random() < 0.4) });
+    selfie = new SelfieCam(canvas, { look: settings.look(), drunk: booze.level(), dave: dave.met() && (dave.here() || Math.random() < 0.4), emote });
   }
   function stopCamera() {
     selfie?.dispose();
     selfie = null;
   }
-  settings.onChange((look) => selfie?.setLook(look));
+  settings.onChange((look) => {
+    selfie?.setLook(look);
+    if (look.emote !== emote && !layer) emote = look.emote;
+  });
 
   function shoot() {
     if (!selfie) return;
@@ -340,6 +384,12 @@ export function createPhone({ button, store, sound, toast, booze, dave, hangover
     if (t.dataset.cab === 'book') return bookCab();
     if (t.dataset.food) return orderFood(FOOD.find((f) => f.id === t.dataset.food));
     if (t.dataset.shoot != null) return shoot();
+    if (t.dataset.emote) {
+      emote = t.dataset.emote;
+      selfie?.setEmote(emote);
+      screen.querySelectorAll('.cam-emote').forEach((b) => b.classList.toggle('on', b.dataset.emote === emote));
+      return sound.blip(1200, 0.04, 'triangle', 0.07);
+    }
     if (t.dataset.photo != null) {
       viewing = +t.dataset.photo;
       stopCamera();
@@ -365,7 +415,9 @@ export function createPhone({ button, store, sound, toast, booze, dave, hangover
       render();
     }
   });
+  const playTone = (id) => playRingtone(sound, (id || settings.look().ringtone).replace(/tone$/, ''));
   dave.setHooks({
+    tone: () => playTone(),
     openPhone: (app) => open(app),
     closePhone: close,
     isReading: () => (!!layer && view === 'messages') || !bannersOn(),
@@ -382,5 +434,5 @@ export function createPhone({ button, store, sound, toast, booze, dave, hangover
     },
   });
 
-  return { open, close, isOpen: () => !!layer };
+  return { open, close, isOpen: () => !!layer, playTone };
 }
