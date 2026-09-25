@@ -230,7 +230,11 @@ export class DragonRush3D {
     this.speed = 1;
 
     const renderer = (this.renderer = new THREE.WebGLRenderer({ antialias: true }));
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // resolution drops a notch while frames are slow (huge wins) and comes back once it's calm
+    this.maxRatio = Math.min(window.devicePixelRatio, 2);
+    this.ratio = this.maxRatio;
+    this.perf = { t: 0, n: 0, best: Infinity, calm: 0 };
+    renderer.setPixelRatio(this.ratio);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.05;
     renderer.localClippingEnabled = true;
@@ -475,8 +479,11 @@ export class DragonRush3D {
     this.dragonT = 0;
     this._m = new THREE.Matrix4();
     this._q = new THREE.Quaternion();
+    this._e = new THREE.Euler();
     this._v = new THREE.Vector3();
     this._s = new THREE.Vector3();
+    this._head = new THREE.Vector3();
+    this._ahead = new THREE.Vector3();
   }
 
   dragonAt(a, near, out) {
@@ -487,7 +494,6 @@ export class DragonRush3D {
   updateDragon(dt) {
     this.dragonT += dt * (0.2 + this.boost * 0.5 + this.mode * 0.1);
     const near = this.boost;
-    const up = new THREE.Vector3(0, 1, 0);
     for (let i = 0; i < this.dragonN; i++) {
       const a = this.dragonT - i * 0.042;
       this.dragonAt(a, near, this._v);
@@ -497,18 +503,18 @@ export class DragonRush3D {
       this.dragonBody.setMatrixAt(i, this._m);
       const sk = i % 2 === 0 && i > 2 ? r * 0.9 : 0;
       this._s.set(sk, sk, sk);
-      this._v.addScaledVector(up, r * 0.9);
+      this._v.y += r * 0.9;
       this._m.compose(this._v, this._q.identity(), this._s);
       this.dragonSpikes.setMatrixAt(i, this._m);
     }
     this.dragonBody.instanceMatrix.needsUpdate = true;
     this.dragonSpikes.instanceMatrix.needsUpdate = true;
-    const head = this.dragonAt(this.dragonT + 0.03, near, new THREE.Vector3());
-    const ahead = this.dragonAt(this.dragonT + 0.08, near, new THREE.Vector3());
+    const head = this.dragonAt(this.dragonT + 0.03, near, this._head);
+    const ahead = this.dragonAt(this.dragonT + 0.08, near, this._ahead);
     const k = 4.2;
-    this.dragonHead.position.copy(head).add(new THREE.Vector3(0, 0.4, 0.8));
+    this.dragonHead.position.set(head.x, head.y + 0.4, head.z + 0.8);
     this.dragonHead.scale.set(ahead.x > head.x ? -k : k, k, 1);
-    this.dragonGlow.position.copy(head).add(new THREE.Vector3(0, 0, 0.5));
+    this.dragonGlow.position.set(head.x, head.y, head.z + 0.5);
     this.dragonGlow.scale.setScalar(9 + this.mode * 4 + this.boost * 6);
     this.dragonBody.material.emissive.setRGB(0.25 + this.mode * 0.4 + this.boost * 0.6, 0.02 + this.mode * 0.15, 0);
   }
@@ -616,7 +622,8 @@ export class DragonRush3D {
     qg.textBaseline = 'middle';
     qg.fillText('龍', 128, 136);
     const plaque = new THREE.Mesh(new THREE.PlaneGeometry(1.25, 1.25), new THREE.MeshStandardMaterial({ map: tex(qc), roughness: 0.4, metalness: 0.2, emissive: 0xffffff, emissiveMap: tex(qc), emissiveIntensity: 0.3 }));
-    plaque.position.set(0, roofY + 0.5, 0.28);
+    // just proud of the roof's front face (-1.4 + 1.6 depth + 0.08 bevel = 0.28), or the two z-fight and flicker
+    plaque.position.set(0, roofY + 0.5, 0.34);
     s.add(plaque);
 
     // base plinth
@@ -812,8 +819,9 @@ export class DragonRush3D {
       glow.visible = false;
       return;
     }
+    // only the first map needs a shader rebuild; swapping one texture for another doesn't
+    if (!m.material.map) m.material.needsUpdate = true;
     m.material.map = this.spotTexture(v);
-    m.material.needsUpdate = true;
     m.material.opacity = 1;
     m.visible = true;
     glow.visible = v >= 2;
@@ -880,8 +888,8 @@ export class DragonRush3D {
     this.flashNext = 0;
   }
   burst(pos, color, n = 14, power = 1) {
-    const col = new THREE.Color(color);
-    const white = new THREE.Color(1, 1, 1);
+    const col = (this._burstColor ||= new THREE.Color()).set(color);
+    const white = (this._white ||= new THREE.Color(1, 1, 1));
     for (let i = 0; i < n; i++) {
       const k = this.sparkNext++ % this.sparkN;
       const d = this.sparkData[k];
@@ -930,7 +938,7 @@ export class DragonRush3D {
   // ---------- symbols on the grid ----------
   make(id) {
     const o = this.kinds[id].clone();
-    o.userData = { id, ph: Math.random() * 6.28, base: this.kinds[id].scale.x };
+    o.userData = { id, ph: Math.random() * 6.28, base: this.kinds[id].scale.x, flame: o.getObjectByName('flame') };
     this.board.add(o);
     return o;
   }
@@ -1143,10 +1151,37 @@ export class DragonRush3D {
     this.camera.setViewOffset(w, h, w / 2 - cx, h / 2 - cy, w, h);
     this.camera.updateProjectionMatrix();
   }
+  // watch the frame rate in half-second windows: slow → render fewer pixels, calm for a while → back up
+  adapt(raw) {
+    const p = this.perf;
+    if (raw > 0.25) return; // a hitch or a hidden tab, not a trend
+    p.t += raw;
+    p.n++;
+    if (p.t < 0.5) return;
+    const avg = p.t / p.n;
+    p.t = p.n = 0;
+    p.best = Math.min(p.best, avg); // ≈ the display's refresh interval
+    const min = Math.min(1, this.maxRatio) * 0.75;
+    let next = this.ratio;
+    if (avg > Math.max(0.024, p.best * 1.5)) {
+      next = Math.max(min, this.ratio - 0.25);
+      p.calm = 0;
+    } else if (avg < p.best * 1.25 + 0.002 && ++p.calm >= 6 && this.ratio < this.maxRatio) {
+      next = Math.min(this.maxRatio, this.ratio + 0.25);
+      p.calm = 0;
+    }
+    if (next !== this.ratio) {
+      this.ratio = next;
+      this.renderer.setPixelRatio(next);
+      this.renderer.setSize(this.W, this.H, false);
+    }
+  }
   frame() {
-    const dt = Math.min(this.clock.getDelta(), 0.05);
+    const raw = this.clock.getDelta();
+    const dt = Math.min(raw, 0.05);
     const t = this.clock.elapsedTime;
     const now = performance.now();
+    this.adapt(raw);
 
     for (let i = this.anims.length - 1; i >= 0; i--) {
       const a = this.anims[i];
@@ -1170,12 +1205,9 @@ export class DragonRush3D {
 
     // idle symbol life
     for (const o of this.board.children) {
-      const ph = o.userData.ph;
+      const { ph, flame } = o.userData;
       o.rotation.y = Math.sin(t * 1.3 + ph) * 0.32;
-      if (o.userData.id === 'pearl') {
-        const f = o.getObjectByName('flame');
-        if (f) f.scale.set(1 + Math.sin(t * 9 + ph) * 0.06, 1 + Math.sin(t * 7 + ph) * 0.1, 1);
-      }
+      if (flame) flame.scale.set(1 + Math.sin(t * 9 + ph) * 0.06, 1 + Math.sin(t * 7 + ph) * 0.1, 1);
     }
 
     // sparks
@@ -1188,7 +1220,7 @@ export class DragonRush3D {
       d.v.y -= 9 * dt;
       d.p.addScaledVector(d.v, dt);
       const s = Math.max(0, d.life) * d.s;
-      this._q.setFromEuler(new THREE.Euler(t * 5 + i, t * 3, 0));
+      this._q.setFromEuler(this._e.set(t * 5 + i, t * 3, 0));
       this._m.compose(d.p, this._q, this._s.set(s, s, s));
       this.sparks.setMatrixAt(i, this._m);
     }

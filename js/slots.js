@@ -183,18 +183,22 @@ export function createSlots({ host, sound, music, getBalance, adjust, toast, onO
     $$('.dr-minus').disabled = $$('.dr-plus').disabled = busy || inBonus;
   }
   const setMsg = (t) => (msg.textContent = t);
+  const winEl = $$('.dr-win');
+  let winRaf = 0;
   function setWin(target) {
+    // a tumble chain calls this every step: one count-up at a time, not one per step
+    cancelAnimationFrame(winRaf);
     const from = shownWin;
     shownWin = target;
     if (!target) {
-      $$('.dr-win').textContent = 'WIN $0';
+      winEl.textContent = 'WIN $0';
       return;
     }
     const t0 = performance.now();
     (function count(now) {
       const u = Math.min((now - t0) / 450, 1);
-      $$('.dr-win').textContent = `WIN ${money(from + (target - from) * u)}`;
-      if (u < 1) requestAnimationFrame(count);
+      winEl.textContent = `WIN ${money(from + (target - from) * u)}`;
+      if (u < 1) winRaf = requestAnimationFrame(count);
     })(t0);
   }
 
@@ -745,6 +749,9 @@ export function createSlots({ host, sound, music, getBalance, adjust, toast, onO
     machine.start();
     renderDisplay();
     view.classList.add('open');
+    // the win tally's icons take a moment to render (a whole extra WebGL setup): do it during
+    // the walk in (a CSS slide the compositor runs) instead of freezing the first win
+    if (!icons) setTimeout(() => icon('sapph'), 120);
     document.body.classList.add('in-slots');
     music?.setSong?.('slots');
     onOpen?.();
