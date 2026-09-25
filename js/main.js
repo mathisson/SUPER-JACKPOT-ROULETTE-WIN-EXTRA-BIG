@@ -20,6 +20,7 @@ import { CATALOG } from './avatar.js';
 import { createGoals, PERKS, BOOTH_DISCOUNT } from './goals.js';
 import { emit } from './events.js';
 import { createPerkDecor } from './perks3d.js';
+import { createBlackjack } from './blackjack.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 
@@ -57,6 +58,7 @@ let lastBets = null;
 let chipValue = 25;
 let spinning = false;
 let slots = null;          // the slot machine room, created further down
+let blackjack = null;      // the blackjack room, likewise
 
 const $ = (id) => document.getElementById(id);
 const money = (n) =>
@@ -746,6 +748,7 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault();
     return dismissFx();
   }
+  if (blackjack?.isOpen()) return blackjack.key(e);
   if (slots?.isOpen()) {
     // in the slots room: Space pulls the lever, Escape walks back to roulette
     if (e.code === 'Space' && !$('fundsModal').open && !$('roadmapModal').open) {
@@ -1278,7 +1281,7 @@ const booze = createBar({
 });
 startWaiter({
   stage: document.querySelector('.stage'),
-  canWalk: () => !fxActive() && !document.body.classList.contains('bonus-active') && !['vip-party-on', 'kitchen-on', 'hangover-on', 'phone-on', 'settings-on'].some((c) => document.body.classList.contains(c)) && !slots?.isOpen(),
+  canWalk: () => !fxActive() && !document.body.classList.contains('bonus-active') && !['vip-party-on', 'kitchen-on', 'hangover-on', 'phone-on', 'settings-on', 'in-blackjack'].some((c) => document.body.classList.contains(c)) && !slots?.isOpen(),
   onClink: () => sound.clink(),
   pickDrink: booze.pickDrink,
   getTarget: booze.target,
@@ -1306,7 +1309,7 @@ const tab = createTab({
   resume3d: () => !slots?.isOpen() && wheel.resume(),
   isBusy: () =>
     spinning || fxActive() || !!document.querySelector('dialog[open]') ||
-    ['vip-party-on', 'bonus-active', 'hangover-on', 'phone-on', 'settings-on'].some((c) => document.body.classList.contains(c)),
+    ['vip-party-on', 'bonus-active', 'hangover-on', 'phone-on', 'settings-on', 'in-blackjack'].some((c) => document.body.classList.contains(c)),
 });
 
 // ---------- 🍺 Dave (he remembers you) ----------
@@ -1337,7 +1340,7 @@ const dave = createDave({
   // (an angry Dave doesn't care that your phone is out: he closes it and comes over anyway)
   isIdle: (ignorePhone = false) =>
     !spinning && !fxActive() && !slots?.isOpen() && !document.querySelector('dialog[open]') &&
-    !['vip-party-on', 'bonus-active', 'kitchen-on', 'hangover-on', 'settings-on'].some((c) => document.body.classList.contains(c)) &&
+    !['vip-party-on', 'bonus-active', 'kitchen-on', 'hangover-on', 'settings-on', 'in-blackjack'].some((c) => document.body.classList.contains(c)) &&
     (ignorePhone || !document.body.classList.contains('phone-on')),
   onSpill: () => {
     document.body.classList.add('sticky-table');
@@ -1591,7 +1594,7 @@ phone = createPhone({
   resume3d: () => !slots?.isOpen() && wheel.resume(),
   canOpen: () =>
     !spinning && !fxActive() && !document.querySelector('dialog[open]') &&
-    !['vip-party-on', 'bonus-active', 'kitchen-on', 'hangover-on', 'settings-on'].some((c) => document.body.classList.contains(c)),
+    !['vip-party-on', 'bonus-active', 'kitchen-on', 'hangover-on', 'settings-on', 'in-blackjack'].some((c) => document.body.classList.contains(c)),
   roomVisible: () => !slots?.isOpen(),
   bannersOn: () => prefs.banners,
 });
@@ -1641,6 +1644,33 @@ slots = createSlots({
   },
   onClose: () => wheel.resume(),
 });
+// ---------- 🃏 BLACKJACK, with a very smug dealer ----------
+blackjack = createBlackjack({
+  sound,
+  toast,
+  getBalance: () => balance,
+  adjust: (delta) => {
+    balance += delta;
+    render();
+  },
+  onOpen: () => {
+    setAllIn(false);
+    wheel.pause(); // only one 3D room renders at a time
+  },
+  onClose: () => wheel.resume(),
+  onRound: ({ net, staked, multiple }) => {
+    levels.bet(net > 0 ? 'win' : net < 0 ? 'loss' : 'push', staked, multiple);
+    emit('spin', { game: 'blackjack', net, staked, multiple });
+    if (balance < 1) emit('broke');
+  },
+});
+$('toBlackjackBtn').addEventListener('click', () => {
+  if (spinning) return toast('Hold on, the ball is still rolling! 🎡');
+  if (bets.size) return toast('Take your chips off the roulette table first. 🃏');
+  scrollTo({ top: 0, behavior: 'smooth' });
+  blackjack.open();
+});
+
 $('toSlotsBtn').addEventListener('click', () => {
   if (spinning) return toast('Hold on, the ball is still rolling! 🎡');
   scrollTo({ top: 0, behavior: 'smooth' });

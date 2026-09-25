@@ -172,6 +172,11 @@ The round portrait in the **top-right corner** is you. Click it for Settings, wi
 - **🛍️ Store**: hats (party hat, traffic cone, cowboy, top hat, Dave's tie, a $5,000 crown…), glasses, necklaces and outfits up to a $25,000 solid gold suit, plus phone cases, wallpapers, ringtones, win styles and selfie emotes. Try anything on for free before you buy. The store only takes **wallet** money, and the fancier items need a **level**.
 - **⚙️ Settings**: sound, music, Dave's text banners, and **reduce motion** (no screen shake, drunk swaying or head-bob).
 
+### 🃏 BLACKJACK
+Click the **🂡 BLACKJACK** card under the SLOTS arrow for a 3D blackjack room, dealt by a very smug dealer in a tux (built with the same character creator as you). Six decks, **blackjack pays 3 to 2**, the dealer **stands on all 17s**, double down on any two cards, split once, and insurance when the dealer shows an ace ("insurance against *what*, exactly?").
+
+Pick your chips, press **DEAL**, then **Hit**, **Stand**, **Double** or **Split** (or **H**, **S**, **D**, **P** on the keyboard; **Space** deals). The dealer has opinions about every move, dabs when he gets blackjack and facepalms when you do. Hands earn XP like spins, and there are blackjack challenges and two new trophies: **Natural** and **Five Card Charlie**.
+
 ### 👛 THE WALLET & ⭐ LEVELS
 Fake cards buy chips, not crowns. The store only takes money from your **👛 wallet** (top bar), and you fill it by **cashing out** casino chips at **$10 in chips = $1 in the wallet**, up to a **daily limit** of wallet money ($300 at level 1, +$100 per level, resets at midnight). Watch the bills fly into a 3D leather wallet.
 
@@ -181,7 +186,7 @@ Every bet you make (one spin, on roulette or the slots) earns **XP**. Bigger bet
 Settings has a **🏆 Goals** tab:
 
 - **Daily challenges**: three a day (the same three for everyone), like *hit a straight-up number*, *win 2 spins in a row*, *order bottle service* or *lose 5 spins (we believe in you)*. Each pays XP and wallet money; finish all three for a bonus.
-- **Achievements**: twelve of them, from *Beginner's Luck* to *Whale Watching* ($10,000 on one spin). Each one spins onto the screen as a **3D trophy** and then stands on the **trophy shelves** behind your character.
+- **Achievements**: fourteen of them, from *Beginner's Luck* to *Whale Watching* ($10,000 on one spin). Each one spins onto the screen as a **3D trophy** and then stands on the **trophy shelves** behind your character.
 - **🎟️ Loyalty card**: one stamp for every $100 you lose. Fill all ten and redeem it: a rubber stamp slams down **REDEEMED**, the card flips over, and your prize is… **nothing**. Thank you for your loyalty.
 - **Level perks**: **🛋️ VIP booth** at level 5 (bottle service 20% off), **🎩 High-roller table** at level 10 (red velvet felt and velvet ropes around the wheel, minimum $100 a spin, ×1.5 XP) and **🐋 Whale mode** at level 15 (enormous chips and an inflatable whale bobbing behind the wheel, minimum $1,000 a spin, ×2 XP). Switch the last two on and off whenever you like.
 
@@ -217,7 +222,7 @@ On narrow screens the table flips vertical: 0 on top, numbers running down the s
 
 ### 🧪 Also maybe, possibly, who knows
 
-- 🃏 **Blackjack table** in the corner, dealt by a suspiciously smug dealer
+- ~~🃏 **Blackjack table** in the corner, dealt by a suspiciously smug dealer~~ ✅ **SHIPPED**
 - 🏆 **Leaderboard of Shame**, ranked by the biggest fake money lost in a single spin
 - 🐔 **Chicken mode**, where the ball is replaced with a tiny rubber chicken. Pays the same. Sounds worse.
 - ~~🍸 **Free drinks**, a waiter who walks past every 30 seconds and never stops at your table~~ ✅ **SHIPPED**
@@ -314,6 +319,8 @@ js/flair3d.js         the 3D overlay: win styles, the cash-out wallet, level-up 
 js/goals.js           daily challenges, achievements, the loyalty card, level perks
 js/events.js          a tiny event bus (spins, drinks, selfies…) the goals listen to
 js/trophies3d.js      the 3D trophies and the shelves behind your character
+js/blackjack.js       BLACKJACK: the rules, the chips, the dealer's opinions
+js/blackjack3d.js     the 3D blackjack room: table, shoe, cards, chips, the smug dealer
 js/perks3d.js         the high-roller velvet ropes and felt, and the inflatable whale
 js/ads.js             the totally real sponsors ($100 for the broke)
 js/slots.js           DRAGON RUSH WIN BIG: tumbles, free spins, buy bonus, autoplay
