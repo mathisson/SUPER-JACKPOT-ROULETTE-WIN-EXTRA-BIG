@@ -26,6 +26,96 @@ const MAX_PHOTOS = 6;
 const moodLabel = (m) => (m >= 40 ? '🥰 loves you' : m >= 10 ? '🙂 in a good mood' : m > -25 ? '😐 normal Dave' : m > -45 ? '😒 annoyed' : '😤 FURIOUS');
 const clock = () => new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 
+/**
+ * Scrolling, done by hand. The screen sits in a 3D transform (CSS3DRenderer), and Chrome's scroll
+ * hit-testing doesn't find the lists inside it: the wheel scrolls the page behind the phone and a
+ * finger drag does nothing. So: the wheel scrolls whatever list is under it, and on touch you drag
+ * the list (with a little momentum). The map, the turntable and sliders handle their own touches.
+ */
+function assistScroll(screen) {
+  const scrollable = (el, axis) => {
+    for (; el && el !== screen; el = el.parentElement) {
+      const s = getComputedStyle(el);
+      if (axis === 'y' && /auto|scroll/.test(s.overflowY) && el.scrollHeight > el.clientHeight + 1) return el;
+      if (axis === 'x' && /auto|scroll/.test(s.overflowX) && el.scrollWidth > el.clientWidth + 1) return el;
+    }
+    return null;
+  };
+
+  screen.addEventListener(
+    'wheel',
+    (e) => {
+      e.preventDefault(); // never the page behind
+      const k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? screen.clientHeight : 1;
+      let dx = e.deltaX * k;
+      let dy = e.deltaY * k;
+      if (e.shiftKey && !dx) [dx, dy] = [dy, 0];
+      const across = Math.abs(dx) > Math.abs(dy);
+      const el = across ? scrollable(e.target, 'x') : scrollable(e.target, 'y');
+      el?.scrollBy(across ? { left: dx } : { top: dy });
+    },
+    { passive: false }
+  );
+
+  let drag = null;
+  let coast = 0;
+  let dragged = false; // a drag isn't a tap
+  screen.addEventListener('pointerdown', (e) => {
+    cancelAnimationFrame(coast);
+    dragged = false;
+    if (e.pointerType === 'mouse' || e.target.closest('canvas, input[type=range]')) return;
+    // screen pixels per pixel of the phone's screen (it's scaled by the 3D view)
+    const scale = screen.getBoundingClientRect().height / screen.offsetHeight || 1;
+    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, scale, el: null, axis: null, v: 0, t: e.timeStamp, target: e.target };
+  });
+  screen.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const dx = (e.clientX - drag.x) / drag.scale;
+    const dy = (e.clientY - drag.y) / drag.scale;
+    if (!drag.axis) {
+      if (Math.hypot(dx, dy) < 8) return;
+      drag.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      drag.el = scrollable(drag.target, drag.axis);
+      dragged = true;
+    }
+    if (!drag.el) return;
+    const d = drag.axis === 'x' ? dx : dy;
+    if (drag.axis === 'x') drag.el.scrollLeft -= d;
+    else drag.el.scrollTop -= d;
+    const dt = Math.max(1, e.timeStamp - drag.t);
+    drag.v = 0.8 * (d / dt) + 0.2 * drag.v; // px per ms, smoothed
+    drag.x = e.clientX;
+    drag.y = e.clientY;
+    drag.t = e.timeStamp;
+  });
+  const release = (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const { el, axis } = drag;
+    let v = drag.v * 16; // px per frame
+    drag = null;
+    if (!el || Math.abs(v) < 0.5) return;
+    const step = () => {
+      if (axis === 'x') el.scrollLeft -= v;
+      else el.scrollTop -= v;
+      v *= 0.94;
+      if (Math.abs(v) > 0.3) coast = requestAnimationFrame(step);
+    };
+    coast = requestAnimationFrame(step);
+  };
+  screen.addEventListener('pointerup', release);
+  screen.addEventListener('pointercancel', release);
+  screen.addEventListener(
+    'click',
+    (e) => {
+      if (!dragged) return;
+      dragged = false;
+      e.stopPropagation();
+      e.preventDefault();
+    },
+    true
+  );
+}
+
 let daveWallpaper = null;
 function renderDaveWallpaper() {
   if (daveWallpaper) return daveWallpaper;
@@ -109,10 +199,12 @@ export function createPhone({ button, store, sound, toast, booze, dave, hangover
       <div class="ph-status"><span class="ph-time">${clock()}</span><span class="ph-island"></span><span class="ph-icons">📶 🔋</span></div>
       <div class="ph-view"></div>
       <button type="button" class="ph-homebar" aria-label="Home"></button>`;
+    assistScroll(screen);
     screen.addEventListener('click', onClick);
     screen.addEventListener('input', (e) => apps.get(view)?.input?.(e.target));
     screen.addEventListener('change', (e) => apps.get(view)?.change?.(e.target));
     layer.querySelector('.ph-dim').addEventListener('click', close);
+    layer.addEventListener('wheel', (e) => e.preventDefault(), { passive: false }); // the page stays put behind the phone
     pause3d();
     overlay = new PhoneOverlay(layer.querySelector('.ph-stage'), screen, { skin: settings.look().phoneSkin });
     overlay.open();

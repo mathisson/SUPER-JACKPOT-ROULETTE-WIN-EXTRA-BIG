@@ -3258,7 +3258,7 @@ body.hungover main { animation: throb 1.3s ease-in-out infinite; }
 .phone-btn.buzz { animation: phBuzz 0.5s linear; }
 @keyframes phBuzz { 10%, 30%, 50%, 70%, 90% { rotate: -14deg; } 20%, 40%, 60%, 80% { rotate: 14deg; } }
 /* the phone layer */
-.phone-layer { position: fixed; inset: 0; z-index: 56; }
+.phone-layer { position: fixed; inset: 0; z-index: 56; touch-action: none; } /* the phone scrolls its own lists (phone.js assistScroll) */
 .ph-dim { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.35); backdrop-filter: blur(2px); opacity: 0; transition: opacity 0.35s; }
 .phone-layer.on .ph-dim { opacity: 1; }
 .ph-stage { position: absolute; inset: 0; pointer-events: none; }
@@ -3508,13 +3508,15 @@ body.hungover main { animation: throb 1.3s ease-in-out infinite; }
 .mp-card small { display: block; margin-top: 2px; font-size: 12px; line-height: 1.3; opacity: 0.7; }
 .mp-big { font-size: 34px; filter: drop-shadow(0 0 10px var(--c, transparent)); }
 .mp-go { flex: none; padding: 10px 15px; border: 0; border-radius: 99px; background: var(--c, #ffd23f); color: #120610; font-weight: 900; font-size: 14px; box-shadow: 0 0 18px color-mix(in srgb, var(--c, #ffd23f) 60%, transparent); animation: mpGo 1.2s ease-in-out infinite; }
-.mp-go.here { background: rgba(255, 255, 255, 0.1); color: #fff; box-shadow: none; animation: none; }
+.mp-go:is(.here, .soon) { background: rgba(255, 255, 255, 0.1); color: #fff; box-shadow: none; animation: none; }
 @keyframes mpGo { 50% { scale: 1.07; } }
 .mp-list { flex: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; padding: 6px 12px 6px; }
 .mp-place { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.04); color: #fff; transition: background 0.15s, border-color 0.15s; }
 .mp-place span { font-size: 26px; }
 .mp-place small { font-size: 11.5px; font-weight: 700; }
 .mp-place.on { border-color: var(--c); background: color-mix(in srgb, var(--c) 18%, transparent); box-shadow: 0 0 14px color-mix(in srgb, var(--c) 40%, transparent); }
+.mp-place.soon { opacity: 0.7; border-style: dashed; }
+.mp-place.soon i { background: #3fa9ff; color: #04203a; }
 .mp-place i { position: absolute; top: -6px; right: -4px; padding: 1px 5px; border-radius: 99px; background: #ffd23f; color: #2a1a03; font-size: 9px; font-weight: 900; font-style: normal; }
 
 /* ---------- your style, the store, goals and settings ---------- */
