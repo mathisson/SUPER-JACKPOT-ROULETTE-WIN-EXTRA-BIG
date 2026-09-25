@@ -88,7 +88,18 @@ Hit the glowing **SLOTS ➜** arrow and *walk* (footsteps and all) into the slot
 - **TUMBLES.** Winners explode into sparks, everything falls, new gems drop in. Chain them: *BOOM! TUMBLE ×3*, *YOU ARE ON A ROLL!*, *WHAT IS HAPPENING*.
 - **MULTIPLIER SPOTS.** Every explosion marks its spot; the next one makes it **×2**, then it doubles every hit, all the way to **×1024**. A cluster over lit spots is multiplied by the sum of them. Hit ×1024 and the dragon briefly announces **×100000000000000000000000000000000000000** before the Dragon Tax Office steps in.
 - **🔥 FLAMING PEARLS.** 3 / 4 / 5 / 6 / 7 scatters give 10 / 12 / 15 / 20 / 30 **FREE SPINS**, and in free spins **the multiplier spots stick** for the whole bonus. The sky turns gold and the dragon gets excited.
-- **💸 BUY BONUS:** *Free Spins* for 100× your bet, or **SUPER FREE SPINS** for 600× where every spot starts at ×2. Your friends asked for it.
+- **💸 BUY BONUS:** *Free Spins* for 100× your bet, or **SUPER FREE SPINS** for 580× where every spot starts at ×2. Your friends asked for it.
+- **✨ 10 SPECIAL MARKERS** that never pay on their own. They *do stuff*:
+  - **🧧 Red Envelope** (free spins only): pops open at the end of the spin for **+1, +2 or +3 free spins**.
+  - **🥠 Fortune Cookie:** cracks open for **+2 free spins**, a **×2 spot**, or a fortune. The fortune is free (*"Help, I am trapped in a slot machine."*).
+  - **🔔 Temple Gong:** a free **respin** that keeps your multiplier spots. A cheap taste of the bonus.
+  - **🧨 Firecracker:** blows up everything in the 3×3 around it and starts a tumble. Firecrackers next to each other go off in a **chain reaction**.
+  - **🥚 Dragon Egg:** cracks on the next tumble, **hatches** on the one after into a ✚ of **baby dragon WILDS** that join any cluster.
+  - **🪁 Kite:** flies off the top of the screen with **every copy** of the most common symbol. The whole grid collapses.
+  - **🐱 Lucky Cat:** waves on every win, and every wave upgrades a random spot. Sometimes it waves at nothing. It's a cat.
+  - **🌕 Full Moon:** gathers **every multiplier** on the board into one giant spot.
+  - **🐼 Lazy Panda:** sleeps through the tumbles, then wakes up grumpy and **levels up every spot around it**.
+  - **🧾 Dragon Tax Inspector:** takes **10%** of your win and refunds you in **free spins**, with a sarcastic receipt.
 - **🕹 THE LEVER:** pull it to spin. **Hold it down for LEVER TURBO**: ratchets, sparks, and spin after spin until you let go.
 - **🤖 AUTO** plays until you stop it or the money runs out (whichever comes first, and we know which one). Plus **⚡ TURBO**.
 - Epic cinematic bonus screens, fireworks in the sky, and multiplier tiles that glow gold → pink → purple → blue → rainbow as they climb.
@@ -316,12 +327,13 @@ js/events.js          a tiny event bus (spins, drinks, selfies…) the goals lis
 js/trophies3d.js      the 3D trophies and the shelves behind your character
 js/perks3d.js         the high-roller velvet ropes and felt, and the inflatable whale
 js/ads.js             the totally real sponsors ($100 for the broke)
-js/slots.js           DRAGON RUSH WIN BIG: tumbles, free spins, buy bonus, autoplay
-js/rush-math.js       the slot maths: clusters, tumbles, ×1024 multiplier spots
-js/slots3d.js         the 3D slot: gems, pagoda gate, sky, the serpent dragon
+js/slots.js           DRAGON RUSH WIN BIG: tumbles, markers, free spins, buy bonus, autoplay
+js/rush-math.js       the slot maths: clusters, wilds, tumbles, ×1024 spots, the 10 markers
+js/slots3d.js         the 3D slot: gems, markers, pagoda gate, sky, the serpent dragon
 js/bonus.js           the 30-second unskippable $1 daily login bonus
 js/music.js           the procedural Vegas big-band loop
 scripts/dev-server.js tiny zero-dependency local server (not deployed)
+scripts/simulate-slots.mjs  plays Dragon Rush a few hundred thousand times to check the return
 ```
 
 - **Fair-ish odds:** results come from `crypto.getRandomValues`, with no bias toward any number. The house edge is the good old single zero, same as a real European wheel.

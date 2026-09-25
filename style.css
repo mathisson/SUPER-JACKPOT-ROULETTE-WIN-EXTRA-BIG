@@ -3730,3 +3730,61 @@ body.high-roller { --felt: #7a1428; --felt-dark: #4a0816; }
 /* 🐋 whale mode: enormous chips */
 body.whale-mode .stack { scale: 2.1; }
 body.whale-mode .fly-chip { scale: 1.9; }
+
+/* ============ ✨ DRAGON RUSH SPECIAL MARKERS ============ */
+/* floating captions over cells: CRACK!, +2 SPINS, fortunes… */
+.dr-pop.note { font-size: 24px; }
+.dr-pop.note.good { color: #b6ffcf; -webkit-text-stroke-color: #064d22; text-shadow: 0 3px 0 #064d22, 0 0 18px rgba(60, 255, 140, 0.8); }
+.dr-pop.note.big { font-size: 34px; }
+.dr-pop.note.fortune {
+  width: max-content;
+  max-width: 240px;
+  white-space: normal;
+  text-align: center;
+  font-family: Georgia, serif;
+  font-style: italic;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #5a1400;
+  -webkit-text-stroke: 0;
+  text-shadow: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #fffaf0;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  animation-duration: 3.2s;
+}
+.dr-pop.note.fortune.small { font-size: 14px; max-width: 170px; padding: 5px 9px; animation-duration: 1.8s; }
+.dr-tally li.note { grid-template-columns: 1fr auto; color: #d8ffe6; background: linear-gradient(90deg, rgba(10, 80, 40, 0.92), rgba(6, 50, 26, 0.88)); border-color: rgba(120, 255, 170, 0.5); }
+
+/* the tax man's receipt */
+.sm-banner.receipt small { color: #b6ffcf; -webkit-text-fill-color: #b6ffcf; }
+.sm-banner .receipt {
+  display: block;
+  margin: 10px auto 0;
+  padding: 14px 20px 18px;
+  width: max-content;
+  font-family: ui-monospace, 'Courier New', monospace;
+  font-size: clamp(14px, 2vw, 22px);
+  font-weight: 700;
+  line-height: 1.5;
+  text-align: left;
+  white-space: pre;
+  color: #222;
+  -webkit-text-fill-color: #222;
+  -webkit-text-stroke: 0;
+  background: #fbfaf4;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  border-radius: 4px;
+  clip-path: polygon(0 0, 100% 0, 100% 92%, 95% 100%, 90% 92%, 85% 100%, 80% 92%, 75% 100%, 70% 92%, 65% 100%, 60% 92%, 55% 100%, 50% 92%, 45% 100%, 40% 92%, 35% 100%, 30% 92%, 25% 100%, 20% 92%, 15% 100%, 10% 92%, 5% 100%, 0 92%);
+}
+.sm-banner .receipt i { color: #777; -webkit-text-fill-color: #777; font-size: 0.8em; }
+
+/* paytable: what the markers do */
+.dr-pt-h { margin: 18px 0 8px; font-family: Cinzel, Georgia, serif; color: #ffd23f; text-align: center; letter-spacing: 0.05em; }
+.dr-pt-card .dr-pt-markers { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 6px 14px; }
+.dr-pt-markers li { display: flex; align-items: center; gap: 10px; padding: 4px 8px; border-radius: 12px; background: rgba(255, 255, 255, 0.05); line-height: 1.35; }
+.dr-pt-markers img { width: 46px; height: 46px; flex: none; }
+.dr-pt-markers strong { display: block; color: #fff3b0; font-size: 12px; letter-spacing: 0.08em; }
