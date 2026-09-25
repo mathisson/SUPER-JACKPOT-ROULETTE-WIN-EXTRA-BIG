@@ -86,7 +86,6 @@ export function createSlots({ host, sound, music, getBalance, adjust, toast, onO
         </div>
       </footer>
     </div>
-    <button type="button" class="to-roulette">ROULETTE</button>
     <div class="dr-pops"></div>
     <div class="sm-winpop"></div>
     <div class="sm-banner"></div>
@@ -973,23 +972,28 @@ export function createSlots({ host, sound, music, getBalance, adjust, toast, onO
   }
 
   // ---------- walking between rooms ----------
+  // A proper walk (footsteps, head-bob, a slow slide), or, when you already walked there on the
+  // phone's map, a quick whoosh.
   const WALK_STEPS = 6;
   const WALK_GAP = 0.27;
-  function walk(then) {
+  const QUICK_MS = 550; // (the .quick-move transitions in style.css)
+  function walk(then, quick) {
     moving = true;
-    document.body.classList.add('walking');
-    footsteps(WALK_STEPS, WALK_GAP);
+    document.body.classList.add(quick ? 'quick-move' : 'walking');
+    if (quick) noise({ dur: 0.45, f0: 300, f1: 2600, vol: 0.16 });
+    else footsteps(WALK_STEPS, WALK_GAP);
     setTimeout(() => {
-      document.body.classList.remove('walking');
+      document.body.classList.remove('walking', 'quick-move');
       moving = false;
       renderDisplay();
       then?.();
-    }, WALK_STEPS * WALK_GAP * 1000);
+    }, quick ? QUICK_MS : WALK_STEPS * WALK_GAP * 1000);
   }
   const fitHeight = () => view.style.setProperty('--top', `${host.getBoundingClientRect().top + scrollY}px`);
   addEventListener('resize', () => open && fitHeight());
-  function show() {
-    if (open || moving) return;
+  /** quick: you walked here on the map already, so just whoosh in. False if you can't go now. */
+  function show({ quick = false } = {}) {
+    if (open || moving) return false;
     open = true;
     fitHeight();
     machine.start();
@@ -1007,19 +1011,28 @@ export function createSlots({ host, sound, music, getBalance, adjust, toast, onO
       dingding(8);
       toast('🐉 Welcome to DRAGON RUSH WIN BIG! Spin it!');
       if (free) setTimeout(() => spin(), 800);
-    });
+    }, quick);
+    return true;
   }
-  function hide() {
-    if (!open || busy || moving) return;
+  function hide({ quick = false } = {}) {
+    if (!open || busy || moving) return false;
     open = false;
     autoOn = false;
     view.classList.remove('open');
     document.body.classList.remove('in-slots');
     music?.setSong?.('lobby');
     onClose?.();
-    walk(() => machine.stop());
+    walk(() => machine.stop(), quick);
+    return true;
   }
-  $$('.to-roulette').addEventListener('click', hide);
 
-  return { show, hide, spin: () => spin(), isOpen: () => open, refresh: renderDisplay };
+  return {
+    show,
+    hide,
+    spin: () => spin(),
+    isOpen: () => open,
+    /** mid-spin (or mid-walk): you can't leave yet */
+    busy: () => busy || moving,
+    refresh: renderDisplay,
+  };
 }

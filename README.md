@@ -79,10 +79,10 @@ Lose a spin and a dark band fades across the screen:
 Complete with a mournful drone. You'll be back. They always come back.
 
 ### 🎺 Vegas lobby music
-An original big-band swing tune with a muted trumpet, brass hits, walking bass and slot-machine sparkles, all synthesised live in your browser. No audio files, no copyright lawyers. Toggle it with 🎵; sound effects live on 🔊.
+An original big-band swing tune with a muted trumpet, brass hits, walking bass and slot-machine sparkles, all synthesised live in your browser. No audio files, no copyright lawyers. Switch it (and the sound effects) on and off in 📱 → ⚙️ Settings.
 
 ### 🐉 DRAGON RUSH WIN BIG (DING DING DING)
-Hit the glowing **SLOTS ➜** arrow and *walk* (footsteps and all) into the slots room. The band switches to **Dragon Disco** and a **3D pagoda gate** full of chunky 3D gems appears in front of a sunset sky, with mountains, rising sky lanterns and a serpent dragon looping through the clouds.
+Open the **🗺️ Map** on your phone, tap Dragon Rush and *walk* (footsteps and all) into the slots room. The band switches to **Dragon Disco** and a **3D pagoda gate** full of chunky 3D gems appears in front of a sunset sky, with mountains, rising sky lanterns and a serpent dragon looping through the clouds.
 
 - **7×7 CLUSTER PAYS.** 5+ matching symbols touching up, down, left or right pay. No lines, no reels, just vibes.
 - **TUMBLES.** Winners explode into sparks, everything falls, new gems drop in. Chain them: *BOOM! TUMBLE ×3*, *YOU ARE ON A ROLL!*, *WHAT IS HAPPENING*.
@@ -105,7 +105,7 @@ Hit the glowing **SLOTS ➜** arrow and *walk* (footsteps and all) into the slot
 - Epic cinematic bonus screens, fireworks in the sky, and multiplier tiles that glow gold → pink → purple → blue → rainbow as they climb.
 - Simulated over 400,000 spins at a ~96% return (bonus buys ≈96% too), so it's generous but still a casino.
 
-`Space` spins, `Esc` walks you back to roulette.
+`Space` spins. `Esc` (or the 🗺️ Map) walks you back to roulette.
 
 ### 🍸 FREE DRINKS
 Every 30 seconds a fabulously mustached waiter strolls past your table with a tray of martinis and tiki drinks. He **never stops at your table**. Some laps he sprints, moonwalks, tiptoes or shows up on roller skates. Sometimes he stops right in front of you, asks *"Can I get you anything?"*… then says *"just kidding"* and leaves. He'll never *serve* you, but you can **click him to snatch a drink off his tray** (*"Hey! That was for table 7!"*), and sometimes he just lobs one at you.
@@ -169,27 +169,30 @@ Close the tab while you're drunk and the next time you open it, you **wake up in
 Drink the $5 water to feel fine, or put your sunglasses on and go back to the casino **hungover**: for a minute everything is too bright, throbbing, and every sound is too loud.
 
 ### 📱 YOUR PHONE
-Tap **📱** in the top bar (or press `P`) and a **3D phone** rises into your hand, tilting as you move. Its screen is fully clickable:
+Tap **📱 Phone** in the top bar (or press `P`) and a **3D phone** rises into your hand, tilting as you move. Its screen is fully clickable, and everything lives on it: the map, the bank, your style, the store, your goals, the settings and the roadmap.
+
+- **🗺️ Map**: the whole casino floor as a little **3D diorama**: the roulette table with its wheel spinning, the Dragon Rush cabinets flashing, Dave hanging around, and **you**, as your own character, with a bouncing arrow over your head. It swoops in from above, drifts, and you can drag it to look around. Tap a room and a beam of light marks it; hit **Go ➜** and you walk there along a glowing trail, then the phone goes away and you're in. (Blackjack will get a spot on the floor when it opens.)
+- **🏦 Bank**: your casino chips and your wallet, cashing out, and adding fake funds (below).
 
 - **💬 Messages**: your whole conversation with Dave, and a proper phone **text tone** every time he writes. Reply with one tap and watch his **mood** (🥰 → 😐 → 😤): be nice and he sends you a drink (or, once in a blue moon, some of your money back). Ask "who is this?" and he floods you with *ITS DAVE*. Be mean enough and he texts **"omw 😤"**, closes your phone, storms onto your table **red-faced with steam coming out of his ears**, takes your chips "as interest" or pours his beer over the table (it's sticky now), and refuses to leave until you text him **"sorry dave 🥺"**. Leave him on read and he notices.
 - **🚕 CabCab**: a ride home at a permanent 4.8× surge. Drunk? The driver takes you to the hotel instead, and you wake up in the morning after. Sober? Kevin drives you round the block.
 - **🛵 GrubGrab**: order a kebab, pizza or a Mystery Wrap to sober up. Marco the courier walks it across your roulette table in 3D. If Dave's on the table, there's a good chance he eats it.
 - **📸 Camera**: selfies of **your character**, in the casino, with Dave photobombing if he's around, and a wobbly double-vision filter when you're drunk.
 
-### ⚙️ YOUR CHARACTER, THE STORE & SETTINGS
-The round portrait in the **top-right corner** is you. Click it for Settings, with your 3D character on a spotlit turntable (drag to spin):
+### 👤 YOUR CHARACTER, THE STORE & SETTINGS
+Your face is the **Style** app on your phone. Style, Store and Goals all open with your 3D character on a spotlit turntable at the top (drag to spin):
 
-- **👤 Character**: skin, hair, hair colour, facial hair, expression and T-shirt colour, plus everything you own.
+- **👤 Style**: skin, hair, hair colour, facial hair, expression and T-shirt colour, plus everything you own.
 - **🛍️ Store**: hats (party hat, traffic cone, cowboy, top hat, Dave's tie, a $5,000 crown…), glasses, necklaces and outfits up to a $25,000 solid gold suit, plus phone cases, wallpapers, ringtones, win styles and selfie emotes. Try anything on for free before you buy. The store only takes **wallet** money, and the fancier items need a **level**.
 - **⚙️ Settings**: sound, music, Dave's text banners, and **reduce motion** (no screen shake, drunk swaying or head-bob).
 
 ### 👛 THE WALLET & ⭐ LEVELS
-Fake cards buy chips, not crowns. The store only takes money from your **👛 wallet** (top bar), and you fill it by **cashing out** casino chips at **$10 in chips = $1 in the wallet**, up to a **daily limit** of wallet money ($300 at level 1, +$100 per level, resets at midnight). Watch the bills fly into a 3D leather wallet.
+Fake cards buy chips, not crowns. The store only takes money from your **👛 wallet** (top bar; tap it to open the 🏦 Bank), and you fill it by **cashing out** casino chips in the Bank at **$10 in chips = $1 in the wallet**, up to a **daily limit** of wallet money ($300 at level 1, +$100 per level, resets at midnight). Watch the bills fly into a 3D leather wallet.
 
-Every bet you make (one spin, on roulette or the slots) earns **XP**. Bigger bets earn more: 10 XP, +10 for every ×10 of stake ($1 → 10, $10 → 20, $100 → 30, $1,000+ → 40). Then the result: a win +10, or +20 when you get 5× your stake back and +30 at 20× (hello, straight-up number); a push +5, a loss +3. **Never more than 60 XP per spin.** Buying drinks earns XP too: 5, +5 for every ×10 of price (a lager 5, the whiskey 15), and **double for bottle service** (Pete's 30, Moët 40, Dom 50). The ring around your level in the top bar fills up; a new level gets you a spinning 3D gold medal, a bigger daily cash-out limit, and new store items to buy.
+Every bet you make (one spin, on roulette or the slots) earns **XP**. Bigger bets earn more: 10 XP, +10 for every ×10 of stake ($1 → 10, $10 → 20, $100 → 30, $1,000+ → 40). Then the result: a win +10, or +20 when you get 5× your stake back and +30 at 20× (hello, straight-up number); a push +5, a loss +3. **Never more than 60 XP per spin.** Buying drinks earns XP too: 5, +5 for every ×10 of price (a lager 5, the whiskey 15), and **double for bottle service** (Pete's 30, Moët 40, Dom 50). The ring around your level in the top bar fills up (tap it for your goals); a new level gets you a spinning 3D gold medal, a bigger daily cash-out limit, and new store items to buy.
 
 ### 🏆 GOALS: CHALLENGES, TROPHIES, THE LOYALTY CARD & PERKS
-Settings has a **🏆 Goals** tab:
+Your phone has a **🏆 Goals** app:
 
 - **Daily challenges**: three a day (the same three for everyone), like *hit a straight-up number*, *win 2 spins in a row*, *order bottle service* or *lose 5 spins (we believe in you)*. Each pays XP and wallet money; finish all three for a bonus.
 - **Achievements**: twelve of them, from *Beginner's Luck* to *Whale Watching* ($10,000 on one spin). Each one spins onto the screen as a **3D trophy** and then stands on the **trophy shelves** behind your character.
@@ -205,7 +208,7 @@ Once a day you're offered a **life-changing reward**, delivered via a **30-secon
 The Skip button runs away from your mouse and its countdown keeps starting over. Escape and Space just get you *"Nice try 😏"*. Declining also takes 30 seconds. Want to watch it again today? Add `?bonus` to the URL.
 
 ### 💳 The Fake Bank of Fake Money
-Out of chips? Hit **+ Add funds** and "deposit" with a fake card. There's a live card preview, validation and a very convincing "Pretending to contact the bank…" spinner. No card? Switch to the **📱 Swish (fake)** tab, pick an amount and approve on a pretend phone with your imaginary fingerprint. No app, no phone number, no real money.
+Out of chips? Open the **🏦 Bank** on your phone, hit **💳 Card** and "deposit" with a fake card. There's a live card preview, validation and a very convincing "Pretending to contact the bank…" spinner. No card? Hit **📱 Swish**, pick an amount and approve with your imaginary fingerprint. No app, no phone number, no real money. Then the phone goes away and the chips fly into your rack.
 
 - ✅ `4242 4242 4242 4242` always works
 - ❌ `4000 0000 0000 0002` always gets declined (for the drama)
@@ -223,7 +226,7 @@ On narrow screens the table flips vertical: 0 on top, numbers running down the s
 | # | Feature | Likelihood |
 |---|---|---|
 | 1 | 👯 **MULTIPLAYER** — lose fake money *together*, in real time, with your friends | 🎲 *perchance* |
-| 2 | ~~🎰 **SLOTS**~~ — **SHIPPED:** 🐉 DRAGON RUSH WIN BIG is live. Hit the SLOTS ➜ arrow. | ✅ *done, DING DING* |
+| 2 | ~~🎰 **SLOTS**~~ — **SHIPPED:** 🐉 DRAGON RUSH WIN BIG is live. Walk there on the 🗺️ Map. | ✅ *done, DING DING* |
 | 3 | 🤡 **OTHER FUNNY STUFF** — you'll know it when you see it | 💯 *guaranteed* |
 
 ### 🧪 Also maybe, possibly, who knows
@@ -238,6 +241,7 @@ On narrow screens the table flips vertical: 0 on top, numbers running down the s
 - ~~🤕 **Hangovers**, if you close the tab drunk~~ ✅ **SHIPPED**
 - ~~📱 **A phone**, to text Dave back (at your own risk), call a cab and take selfies~~ ✅ **SHIPPED**
 - ~~🎩 **A character and a hat store**~~ ✅ **SHIPPED**
+- ~~🗺️ **A map of the casino** on your phone. Tap somewhere, walk there.~~ ✅ **SHIPPED**
 - 🎲 **Craps**, purely so we can put the word "craps" in a README
 - 🧓 **Your grandma**, who shows up and tells you to stop after 3 losses in a row
 - ~~🎟️ **Loyalty card**, earn points for every fake dollar lost and redeem them for absolutely nothing~~ ✅ **SHIPPED**
@@ -291,7 +295,8 @@ It's a static site. [vercel.json](vercel.json) tells Vercel to serve the folder 
 | `T` (during a party) | Tap the beat to sync the dancers |
 | **Click Dave** | Ask for your money back (he will not give it back) |
 | `P` | Take your phone out / put it away |
-| **Top-right portrait** | Settings, your character and the store |
+| **📱 Phone** | Map, bank, your style, the store, goals, settings |
+| **👛 Wallet** / **level ring** | Open the bank / your goals |
 | **💧 Water $5** | Sober up a little (overpriced, as is tradition) |
 | **Drag / scroll** on the wheel | Orbit / zoom the camera |
 
@@ -302,7 +307,7 @@ It's a static site. [vercel.json](vercel.json) tells Vercel to serve the folder 
 ```
 index.html            the page
 style.css             the drip
-js/main.js            the game: bets, chips, rack, ALL IN, sounds, fake bank
+js/main.js            the game: bets, chips, rack, ALL IN, sounds; wires up the phone apps
 js/wheel.js           the 3D wheel, ball physics-ish and camera
 js/scenery.js         the casino: table, carpet, slot machines, lights, haze
 js/fx.js              WIN / MEGA WIN / JACKPOT! celebrations and YOU DIED
@@ -314,11 +319,15 @@ js/kitchen3d.js       the 3D receipt printer and the 3D dishwashing sink
 js/dave.js            Dave: in 3D on your table, borrowing chips, texting you
 js/hangover.js        noticing you left drunk, the morning after, being hungover
 js/hangover3d.js      the 3D hotel room: blinds, sunbeams, buzzing phone, the cone
-js/phone.js           the phone's apps: Messages, CabCab, GrubGrab, Camera
+js/phone.js           the phone: home screen, Messages, CabCab, GrubGrab, Camera, plug-in apps
 js/phone3d.js         the 3D handset (CSS3D screen) and the selfie camera scene
 js/courier.js         Marco the food courier, walking across your table in 3D
 js/avatar.js          your 3D character, the store catalogue, the turntable
-js/settings.js        the top-right Settings page: character, store, settings
+js/settings.js        the Style, Store, Goals and Settings apps
+js/bank.js            the Bank app: cash out, fake card and fake Swish deposits
+js/map.js             the Map app: the places, picking one, walking there
+js/map3d.js           the 3D casino floor map, you on it, the glowing trail
+js/roadmap.js         the Coming Soon™ app
 js/wallet.js          the wallet the store takes, and its daily cash-out limit
 js/levels.js          XP per bet, levels, and the level each store item needs
 js/flair3d.js         the 3D overlay: win styles, the cash-out wallet, level-up medal, trophies, loyalty card
@@ -338,7 +347,7 @@ scripts/simulate-slots.mjs  plays Dragon Rush a few hundred thousand times to ch
 
 - **Fair-ish odds:** results come from `crypto.getRandomValues`, with no bias toward any number. The house edge is the good old single zero, same as a real European wheel.
 - **Everything is generated:** textures, sounds and music are all drawn or synthesised at runtime. The only things downloaded are Three.js, a few fonts and (only if you pick a song) the YouTube player.
-- **Your balance is saved** in your browser's `localStorage`. Reset it any time from the Add funds dialog.
+- **Your balance is saved** in your browser's `localStorage`. Reset it any time from the 🏦 Bank on your phone.
 
 ---
 
