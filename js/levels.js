@@ -10,12 +10,13 @@ export const XP = { push: 5, loss: 3, cap: 60 };
  *   the result: a win +10, or +20 at 5× your stake back, +30 at 20× (a straight-up number);
  *               a push +5, a loss +3
  *   never more than XP.cap
+ *   then × mult (the high-roller table and whale mode), cap included
  * @param multiple  what came back ÷ what was staked
  */
-export function betXp(outcome, stake = 1, multiple = 0) {
+export function betXp(outcome, stake = 1, multiple = 0, mult = 1) {
   const forBet = Math.min(40, 10 + 10 * Math.floor(Math.log10(Math.max(1, stake))));
   const forResult = outcome === 'win' ? (multiple >= 20 ? 30 : multiple >= 5 ? 20 : 10) : XP[outcome] || 0;
-  return Math.min(XP.cap, forBet + forResult);
+  return Math.round(Math.min(XP.cap, forBet + forResult) * mult);
 }
 
 /**
@@ -74,7 +75,9 @@ export function createLevels({ store, onGain, onLevelUp }) {
     level: () => progress().level,
     progress,
     /** A bet was settled: 'win' | 'loss' | 'push', or 'placed' when there's no result yet (bonus buys). */
-    bet: (outcome, stake, multiple) => add(betXp(outcome, stake, multiple)),
+    bet: (outcome, stake, multiple, mult) => add(betXp(outcome, stake, multiple, mult)),
+    /** XP from a challenge or an achievement */
+    bonus: (xp) => add(xp),
     /** You bought a drink (or a bottle). */
     drink: (price, bottle) => add(drinkXp(price, bottle)),
   };

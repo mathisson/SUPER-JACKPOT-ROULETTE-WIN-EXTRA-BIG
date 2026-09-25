@@ -6,6 +6,7 @@ import { PhoneOverlay, SelfieCam, SCREEN_PX } from './phone3d.js';
 import { REPLIES, buildDave } from './dave.js';
 import { WALLPAPERS, playRingtone } from './skins.js';
 import { CATALOG } from './avatar.js';
+import { emit } from './events.js';
 import { throwDrink } from './drinks.js';
 
 const money = (n) => '$' + Math.round(n).toLocaleString('en-US');
@@ -291,6 +292,7 @@ export function createPhone({ button, store, sound, toast, booze, dave, hangover
     sound.blip(900, 0.08, 'triangle', 0.07, 0.04);
     const url = selfie.snap({ caption: `Club Jackpot · ${money(getBalance())} 💸` });
     photos = [...photos, url].slice(-MAX_PHOTOS);
+    emit('selfie');
     try {
       store.set('fr.selfies', photos);
     } catch {}
@@ -327,6 +329,7 @@ export function createPhone({ button, store, sound, toast, booze, dave, hangover
     if (order) return toast('🛵 One order at a time. Marco has one scooter.');
     if (getBalance() < item.price) return toast(`💳 Declined. Even the ${money(item.price)} ${item.name}.`);
     spend(item.price);
+    emit('food', { item });
     order = { item, left: ETA_S };
     sound.cash();
     render();

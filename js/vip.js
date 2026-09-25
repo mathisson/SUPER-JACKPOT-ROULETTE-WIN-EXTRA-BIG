@@ -255,9 +255,14 @@ function dudeSvg() {
  * @param tab     the bar tab: bar drinks go on it instead of being paid for
  * @param onDave  () => void, Dave crashed the party (he'll remember you)
  */
-/** @param onBuy(price, bottle)  you ordered something (XP) */
-export function createVip({ button, sound, music, musicOn, toast, booze, getBalance, spend, onBroke, tab, onDave, onBuy }) {
+/**
+ * @param onBuy(price, bottle)  you ordered something (XP)
+ * @param discount()            0..1 off bottle service (the VIP booth perk)
+ */
+export function createVip({ button, sound, music, musicOn, toast, booze, getBalance, spend, onBroke, tab, onDave, onBuy, discount }) {
   const BOTTLES = new Set(MENU.find((m) => m.title.includes('Bottle')).items.map((i) => i.id));
+  const priceOf = (it) => (BOTTLES.has(it.id) ? Math.round(it.price * (1 - (discount?.() || 0))) : it.price);
+  const priced = (it) => ({ ...it, price: priceOf(it) });
   // A paper menu: slides up closed, the leather cover swings open onto two parchment pages.
   // The cover's inside face *is* the left page (the bar), the right page is bottle service.
   const itemHtml = (it, n) => `<button type="button" class="vip-item${it.gold ? ' gold' : ''}" data-id="${it.id}" style="--n:${n}">
@@ -387,7 +392,10 @@ export function createVip({ button, sound, music, musicOn, toast, booze, getBala
     const bal = getBalance();
     modal.querySelectorAll('.vip-item').forEach((b) => {
       const it = ITEMS.find((x) => x.id === b.dataset.id);
-      b.classList.toggle('pricey', (it.crew || !tab) && it.price > bal);
+      const p = priceOf(it);
+      b.classList.toggle('pricey', (it.crew || !tab) && p > bal);
+      // the VIP booth's prices, with the old one crossed out
+      b.querySelector('.vi-price').innerHTML = p < it.price ? `<s>${money(it.price)}</s> ${money(p)}` : money(it.price);
     });
   }
 
@@ -429,7 +437,7 @@ export function createVip({ button, sound, music, musicOn, toast, booze, getBala
   modal.querySelector('.pm-book').addEventListener('click', (e) => {
     const b = e.target.closest('.vip-item');
     if (!b) return;
-    const it = ITEMS.find((x) => x.id === b.dataset.id);
+    const it = priced(ITEMS.find((x) => x.id === b.dataset.id));
     if (!it.crew && tab) {
       if (booze.blackedOut()) return toast("You're asleep in the parking lot. The bar is closed to you. 💤");
       return tab.canOrder() && serve(it);

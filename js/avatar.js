@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { Stage3D } from './kitchen3d.js';
 import { caseMaterial, wallpaperTexture } from './skins.js';
+import { buildShelf, disposeTree } from './trophies3d.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 
@@ -1426,6 +1427,17 @@ export class AvatarStage extends Stage3D {
     this.avatar.root.position.y = this.restY;
     this.table.add(this.avatar.root);
     this.pop = 0.35; // a little hop when something changes
+  }
+
+  /** Your trophies, on shelves behind the turntable. list: [{ kind, tier, earned }] */
+  setShelf(list) {
+    if (this.shelf) {
+      this.scene.remove(this.shelf);
+      disposeTree(this.shelf);
+    }
+    this.shelf = buildShelf(list);
+    this.shelf.position.set(0, -0.2, -2.6);
+    this.scene.add(this.shelf);
   }
 
   /** Show an emote for a few seconds (the store's try-on). */

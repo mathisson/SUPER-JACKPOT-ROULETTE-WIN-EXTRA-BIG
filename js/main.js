@@ -17,6 +17,9 @@ import { createFlair } from './flair3d.js';
 import { createLevels, itemLevel } from './levels.js';
 import { createWallet, dailyLimit, RATE } from './wallet.js';
 import { CATALOG } from './avatar.js';
+import { createGoals, PERKS, BOOTH_DISCOUNT } from './goals.js';
+import { emit } from './events.js';
+import { createPerkDecor } from './perks3d.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 
@@ -760,6 +763,8 @@ document.addEventListener('keydown', (e) => {
 async function spin() {
   if (spinning) return;
   if (!bets.size) return toast('Place a bet first');
+  const min = perkMin();
+  if (totalBets() < min) return toast(`${goals.perk('whale') ? '🐋 Whale mode' : '🎩 The high-roller table'}: minimum ${money(min)} a spin. You have ${money(totalBets())} down.`);
   sound.ensure();
   setAllIn(false);
   spinning = true;
@@ -777,6 +782,7 @@ async function spin() {
 
 function settle(n) {
   const staked = totalBets();
+  const straight = bets.has('n' + n);
   let returned = 0;
   [...bets.entries()].forEach(([key, amt], k) => {
     const win = BETS[key].covers.includes(n);
@@ -815,7 +821,8 @@ function settle(n) {
   const net = returned - staked;
   balance += returned;
   session += net;
-  levels.bet(net > 0 ? 'win' : net < 0 ? 'loss' : 'push', staked, returned / staked);
+  levels.bet(net > 0 ? 'win' : net < 0 ? 'loss' : 'push', staked, returned / staked, perkMult());
+  emit('spin', { game: 'roulette', net, staked, multiple: returned / staked, straight });
 
   history.unshift(n);
   history = history.slice(0, 18);
@@ -842,6 +849,7 @@ function settle(n) {
     spinning = false;
     render();
     if (balance < 1) {
+      emit('broke');
       toast('Out of chips! Watch an ad for $100, or top up with a fake card 📺');
       $('addFundsBtn').classList.add('pulse');
     }
@@ -1368,6 +1376,34 @@ document.body.classList.toggle('reduce-motion', prefs.reduceMotion);
 // your win style, flying out over every win (roulette and slots)
 const flair = createFlair();
 let phone = null; // created further down; the store plays ringtones through it
+
+// ---------- 🏆 daily challenges, achievements, the loyalty card, level perks ----------
+const goals = createGoals({
+  store,
+  levels,
+  wallet,
+  toast,
+  sound,
+  flair,
+  onChange: () => {
+    settings.refresh();
+    renderProgress();
+  },
+  onPerks: () => applyPerks(),
+});
+const decor = createPerkDecor(wheel);
+// the high-roller table and whale mode: a minimum bet, more XP, and the look
+const perkMin = () => (goals.perk('whale') ? 1000 : goals.perk('highroller') ? 100 : 0);
+const perkMult = () => (goals.perk('whale') ? 2 : goals.perk('highroller') ? 1.5 : 1);
+function applyPerks() {
+  const hr = goals.perk('highroller');
+  const whale = goals.perk('whale');
+  decor.set({ highroller: hr, whale });
+  document.body.classList.toggle('high-roller', hr);
+  document.body.classList.toggle('whale-mode', whale);
+}
+applyPerks();
+
 const settings = createSettings({
   preview: {
     tone: (id) => phone?.playTone(id),
@@ -1379,6 +1415,7 @@ const settings = createSettings({
   toast,
   wallet,
   levels,
+  goals,
   onWithdraw: () => openCashOut(),
   pause3d: () => wheel.pause(),
   resume3d: () => !slots?.isOpen() && wheel.resume(),
@@ -1476,6 +1513,7 @@ $('wmGo').addEventListener('click', () => {
   render();
   $('walletModal').close();
   sound.cash();
+  emit('cashout', { amount: n });
   const toEl = settings.walletEl() || $('walletBtn');
   flair.cashOut({
     fromEl: $('balance'),
@@ -1516,15 +1554,19 @@ function gainedXp(xp) {
 // a new level: a medal, a fanfare, and whatever it unlocked
 function levelledUp(l) {
   const unlocked = CATALOG.filter((c) => c.price > 0 && itemLevel(c) === l);
+  const perk = PERKS.find((p) => p.level === l);
+  emit('level', { level: l });
   setTimeout(() => {
     flair.levelUp(l);
     [523, 659, 784, 1047].forEach((f, i) => sound.blip(f, 0.2, 'triangle', 0.12, i * 0.1));
     const names = unlocked.slice(0, 3).map((c) => `${c.emoji} ${c.name}`).join(', ');
     toast(
       `⭐ Level ${l}! You can cash out ${money(dailyLimit(l))} a day now.` +
-        (unlocked.length ? ` Unlocked: ${names}${unlocked.length > 3 ? ` +${unlocked.length - 3} more` : ''}.` : '')
+        (unlocked.length ? ` Unlocked: ${names}${unlocked.length > 3 ? ` +${unlocked.length - 3} more` : ''}.` : '') +
+        (perk ? ` New perk: ${perk.emoji} ${perk.name} (⚙️ → 🏆 Goals).` : '')
     );
     settings.refresh();
+    applyPerks();
   }, 1200);
 }
 
@@ -1570,7 +1612,11 @@ createVip({
     render();
   },
   onBroke: () => $('addFundsBtn').classList.add('pulse'),
-  onBuy: (price, bottle) => levels.drink(price, bottle),
+  onBuy: (price, bottle) => {
+    levels.drink(price, bottle);
+    emit('drink', { price, bottle });
+  },
+  discount: () => (goals.perk('booth') ? BOOTH_DISCOUNT : 0),
 });
 
 // ---------- 🎰 SLOTS (DING DING DING) ----------
@@ -1584,7 +1630,10 @@ slots = createSlots({
     balance += delta;
     render();
   },
-  onBet: (outcome, stake, multiple) => levels.bet(outcome, stake, multiple),
+  onBet: (outcome, stake, multiple) => {
+    levels.bet(outcome, stake, multiple);
+    if (outcome !== 'placed') emit('spin', { game: 'slots', net: stake * multiple - stake, staked: stake, multiple });
+  },
   onOpen: () => {
     setAllIn(false);
     // only one 3D room renders at a time

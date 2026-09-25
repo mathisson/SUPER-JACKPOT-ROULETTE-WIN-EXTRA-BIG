@@ -1,6 +1,7 @@
 // 🧾 THE BAR TAB: drinks from the menu go on your tab. When it gets too big the waiter
 // brings a very long receipt. Can't pay? There's a sink in the back with your name on it.
 
+import { emit } from './events.js';
 import { ReceiptScene, DishScene } from './kitchen3d.js';
 
 const TAB_LIMIT = 100; // the waiter shows up once the tab (fees and all) hits this
@@ -308,6 +309,7 @@ export function createTab({ store, sound, music, toast, booze, getBalance, spend
       let verdict;
       if (got >= owed) {
         if (tip) earn(tip);
+        emit('dishes');
         verdict = `<h3>Tab washed off! 🧼</h3><p>${tip ? `The chef was impressed and slipped you a <b>${money(tip)}</b> tip.` : 'Exactly enough. The chef is suspicious.'}</p>`;
       } else {
         state.banUntil = Date.now() + BAN_MS;

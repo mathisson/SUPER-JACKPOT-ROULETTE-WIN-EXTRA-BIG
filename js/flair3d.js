@@ -4,6 +4,7 @@
 
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { buildTrophy, disposeTree } from './trophies3d.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 
@@ -172,6 +173,80 @@ function medal(level) {
     r.rotation.z = side * 0.35;
     g.add(r);
   }
+  return g;
+}
+
+// the loyalty card: 10 stars, then a big red REDEEMED, then the prize on the back
+function cardTexture(side) {
+  const c = document.createElement('canvas');
+  c.width = 512;
+  c.height = 320;
+  const x = c.getContext('2d');
+  const grd = x.createLinearGradient(0, 0, 512, 320);
+  grd.addColorStop(0, side === 'back' ? '#2a0d14' : '#fff4d6');
+  grd.addColorStop(1, side === 'back' ? '#5a1424' : '#f0d58a');
+  x.fillStyle = grd;
+  x.fillRect(0, 0, 512, 320);
+  x.textAlign = 'center';
+  x.textBaseline = 'middle';
+  if (side === 'back') {
+    x.fillStyle = '#ffe9a8';
+    x.font = 'bold 30px Georgia, serif';
+    x.fillText('YOUR PRIZE:', 256, 110);
+    x.font = 'bold 64px Georgia, serif';
+    x.fillText('NOTHING', 256, 180);
+    x.font = 'italic 22px Georgia, serif';
+    x.fillText('Thank you for your loyalty.', 256, 250);
+  } else {
+    x.fillStyle = '#5a1424';
+    x.font = 'bold 30px Georgia, serif';
+    x.fillText('CLUB JACKPOT REWARDS', 256, 48);
+    for (let i = 0; i < 10; i++) {
+      const cx = 76 + (i % 5) * 90;
+      const cy = 130 + Math.floor(i / 5) * 90;
+      x.strokeStyle = '#5a1424';
+      x.lineWidth = 4;
+      x.beginPath();
+      x.arc(cx, cy, 32, 0, 7);
+      x.stroke();
+      x.fillStyle = '#c0182a';
+      x.font = 'bold 40px Georgia, serif';
+      x.fillText('★', cx, cy + 2);
+    }
+    if (side === 'redeemed') {
+      x.save();
+      x.translate(256, 175);
+      x.rotate(-0.2);
+      x.strokeStyle = 'rgba(200, 16, 40, 0.9)';
+      x.lineWidth = 10;
+      x.strokeRect(-200, -52, 400, 104);
+      x.fillStyle = 'rgba(200, 16, 40, 0.9)';
+      x.font = 'bold 72px Georgia, serif';
+      x.fillText('REDEEMED', 0, 4);
+      x.restore();
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+function rubberStamp() {
+  const g = new THREE.Group();
+  const wood = new THREE.MeshStandardMaterial({ color: 0x7a4a24, roughness: 0.5 });
+  const handle = new THREE.Mesh(new THREE.SphereGeometry(0.35, 20, 14), wood);
+  handle.position.y = 1.5;
+  handle.scale.set(1, 0.8, 1);
+  g.add(handle);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.2, 0.9, 16), wood);
+  neck.position.y = 0.95;
+  g.add(neck);
+  const block = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.35, 0.7), wood);
+  block.position.y = 0.35;
+  g.add(block);
+  const rubber = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.1, 0.62), new THREE.MeshStandardMaterial({ color: 0xc0182a, roughness: 0.7 }));
+  rubber.position.y = 0.12;
+  g.add(rubber);
   return g;
 }
 
@@ -345,6 +420,109 @@ export function createFlair() {
     run();
   }
 
+  /** 🏆 A new trophy spins in, glints, and heads off to your shelf. */
+  function trophy(kind, tier) {
+    ensure();
+    const g = new THREE.Group();
+    const t = buildTrophy(kind, tier);
+    t.position.y = -0.35;
+    g.add(t);
+    const size = Math.min(240, innerWidth / 3.2);
+    const at = { x: innerWidth / 2, y: innerHeight * 0.42 };
+    g.position.set(at.x, -at.y, 0);
+    g.rotation.x = 0.15;
+    g.scale.setScalar(0.001);
+    scene.add(g);
+    for (let i = 0; i < 2; i++) setTimeout(() => firework(at.x + rand(-140, 140), at.y + rand(-100, 20), [0xffd23f, 0xfff2b0][i]), 300 + i * 250);
+    let k = 0;
+    tweens.push((dt) => {
+      k += dt;
+      const inK = ease(k / 0.5);
+      const out = k > 2.6 ? ease((k - 2.6) / 0.45) : 0;
+      g.scale.setScalar(size * inK * (1 - out) + 0.001);
+      g.rotation.y += dt * (1.2 + (1 - inK) * 10);
+      g.position.x = at.x + out * innerWidth * 0.35;
+      g.position.y = -at.y + Math.sin(k * 2) * 6 + out * 140;
+      if (k > 3.05) {
+        scene.remove(g);
+        disposeTree(g);
+        return false;
+      }
+      return true;
+    });
+    run();
+  }
+
+  /** 🎟️ Your loyalty card flies in, gets stamped REDEEMED, flips over to show the prize. */
+  function stampCard(onDone) {
+    ensure();
+    const size = Math.min(150, innerWidth / 5);
+    const at = { x: innerWidth / 2, y: innerHeight * 0.45 };
+    const front = cardTexture('front');
+    const redeemed = cardTexture('redeemed');
+    const back = cardTexture('back');
+    const edge = new THREE.MeshStandardMaterial({ color: 0xe0b45c, metalness: 0.6, roughness: 0.3 });
+    // matte card stock (a shiny finish washes the print out)
+    const faceMat = new THREE.MeshStandardMaterial({ map: front, roughness: 0.9, envMapIntensity: 0.25 });
+    const backMat = new THREE.MeshStandardMaterial({ map: back, roughness: 0.9, envMapIntensity: 0.25 });
+    const card = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2, 0.04), [edge, edge, edge, edge, faceMat, backMat]);
+    const g = new THREE.Group();
+    g.add(card);
+    const stamp = rubberStamp();
+    stamp.rotation.x = Math.PI / 2; // stands on the card, facing you
+    stamp.position.set(0.2, 0, 6);
+    g.add(stamp);
+    g.position.set(at.x, -at.y, 0);
+    g.rotation.set(-0.35, 0, 0);
+    g.scale.setScalar(0.001);
+    scene.add(g);
+    let k = 0;
+    let slammed = false;
+    let told = false;
+    tweens.push((dt) => {
+      k += dt;
+      // fly in with a spin
+      const inK = ease(k / 0.5);
+      g.scale.setScalar(size * inK + 0.001);
+      g.rotation.z = (1 - inK) * -1.2;
+      // the stamp comes down... SLAM
+      if (k > 0.7 && k < 1.3) {
+        const d = (k - 0.7) / 0.35;
+        stamp.position.z = d < 1 ? lerp(6, 0.05, d * d) : lerp(0.05, 4, ease((k - 1.05) / 0.25));
+        if (d >= 1 && !slammed) {
+          slammed = true;
+          faceMat.map = redeemed;
+          faceMat.needsUpdate = true;
+          g.position.x = at.x + 8;
+        }
+      }
+      if (k >= 1.3) stamp.visible = false;
+      if (slammed && k < 1.4) g.position.x = at.x + Math.sin(k * 90) * 6 * (1.4 - k) * 10;
+      // flip over to the prize
+      if (k > 1.9) g.rotation.y = Math.PI * ease((k - 1.9) / 0.6);
+      if (k > 2.6 && !told) {
+        told = true;
+        onDone?.();
+      }
+      // and away
+      const out = k > 4.2 ? ease((k - 4.2) / 0.45) : 0;
+      if (out) {
+        g.scale.setScalar(size * (1 - out) + 0.001);
+        g.position.y = -at.y - out * 200;
+        g.rotation.z = out * 1.5;
+      }
+      if (k > 4.7) {
+        scene.remove(g);
+        disposeTree(g);
+        redeemed.dispose();
+        front.dispose();
+        return false;
+      }
+      return true;
+    });
+    run();
+  }
+
   /** ⭐ A gold medal with your new level spins up in the middle of the screen. */
   function levelUp(level) {
     ensure();
@@ -442,5 +620,5 @@ export function createFlair() {
     }
   }
 
-  return { burst, cashOut, levelUp };
+  return { burst, cashOut, levelUp, trophy, stampCard };
 }
