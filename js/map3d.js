@@ -1,5 +1,5 @@
 // 🗺️ The casino map, in 3D, on your phone: a little diorama of the floor (the roulette table, the
-// Dragon Rush cabinets, and room for whatever opens next). You're on it, as your own character.
+// Dragon Rush cabinets, and the blackjack table behind a velvet rope). You're on it, as your own character.
 // Tap somewhere and you walk there along a glowing trail.
 
 import * as THREE from 'three';
@@ -8,7 +8,7 @@ import { buildAvatar, animateAvatar, disposeAvatar } from './avatar.js';
 import { buildDave } from './dave.js';
 
 const ME_SCALE = 0.3; // your character, map-sized
-const FLOOR = { w: 10, d: 13 }; // portrait, like the phone
+const FLOOR = { w: 10, d: 16 }; // portrait, like the phone
 const AISLE_X = 2.7; // the walkway down the side of the floor, round the tables
 const VIEW = { yaw: 0, pitch: 0.95 };
 const FOV = 45;
@@ -195,10 +195,81 @@ const MODELS = {
 
 };
 
+// coming soon: roped off, lights low, a floating card to tease you
+MODELS.blackjack = (u) => {
+  const g = new THREE.Group();
+  const felt = std(0x0f4f8a, { roughness: 0.9 });
+  const leather = std(0x2a120a, { roughness: 0.45 });
+  // a half-moon table, the dealer's straight edge at the back
+  const half = (r, h) => new THREE.CylinderGeometry(r, r, h, 40, 1, false, -Math.PI / 2, Math.PI);
+  g.add(cyl(0.3, 0.42, 0.5, std(0x1a0a06), 0, 0.25, -0.3, 16));
+  g.add(mesh(half(1.5, 0.16), leather, 0, 0.55, -0.35));
+  g.add(mesh(half(1.36, 0.06), felt, 0, 0.64, -0.35));
+  g.add(box(0.7, 0.06, 0.2, std(0x111111, { roughness: 0.3 }), 0, 0.69, -0.24)); // the chip tray
+  g.add(box(0.24, 0.16, 0.34, std(0x7a1020, { roughness: 0.4 }), 0.8, 0.74, -0.18)); // the shoe
+  const face = canvasTex(64, 88, (x) => {
+    x.fillStyle = '#fff';
+    x.fillRect(0, 0, 64, 88);
+    x.fillStyle = '#c0182a';
+    x.font = '900 34px Georgia, serif';
+    x.textAlign = 'center';
+    x.textBaseline = 'middle';
+    x.fillText('A♥', 32, 46);
+  });
+  const cardMat = new THREE.MeshStandardMaterial({ map: face, roughness: 0.5, side: THREE.DoubleSide });
+  const cardGeo = new THREE.PlaneGeometry(0.16, 0.22);
+  // two cards at each of five seats, and a stool in front of each
+  for (let i = 0; i < 5; i++) {
+    const a = -1.05 + i * 0.525;
+    for (let k = 0; k < 2; k++) {
+      const c = mesh(cardGeo, cardMat, Math.sin(a) * 0.95 + k * 0.07, 0.675 + k * 0.002, -0.35 + Math.cos(a) * 0.95 - k * 0.03);
+      c.rotation.set(-Math.PI / 2, 0, -a + k * 0.2);
+      g.add(c);
+    }
+    g.add(cyl(0.03, 0.03, 0.45, std(0xaaaaaa, { metalness: 1, roughness: 0.3 }), Math.sin(a) * 1.8, 0.22, -0.35 + Math.cos(a) * 1.8, 8));
+    g.add(cyl(0.15, 0.13, 0.07, std(0x0f4f8a, { roughness: 0.5 }), Math.sin(a) * 1.8, 0.47, -0.35 + Math.cos(a) * 1.8, 16));
+  }
+  // an ace, spinning over the dealer's spot
+  const tease = mesh(new THREE.PlaneGeometry(0.34, 0.47), cardMat, 0, 1.25, -0.3);
+  g.add(tease);
+  // and, obviously, a traffic cone
+  const cone = new THREE.Group();
+  cone.add(cyl(0.02, 0.2, 0.55, std(0xff6a00, { roughness: 0.5 }), 0, 0.3, 0, 16));
+  cone.add(cyl(0.1, 0.13, 0.1, std(0xffffff, { roughness: 0.5 }), 0, 0.3, 0, 16));
+  cone.add(box(0.46, 0.04, 0.46, std(0xff6a00), 0, 0.02, 0));
+  cone.position.set(-1.2, 0, 0.95);
+  cone.rotation.z = 0.12;
+  g.add(cone);
+  u.push((dt, t) => {
+    tease.rotation.y += dt * 1.6;
+    tease.position.y = 1.25 + Math.sin(t * 1.8) * 0.08;
+  });
+  return g;
+};
+
+/** A velvet rope on gold posts, all the way round a place that isn't open yet. */
+function velvetRope(r = 1.95, posts = 10) {
+  const g = new THREE.Group();
+  const gold = std(0xe8c35a, { metalness: 1, roughness: 0.25 });
+  const velvet = std(0xa0102a, { roughness: 0.6 });
+  const at = (i) => new THREE.Vector3(Math.sin((i / posts) * Math.PI * 2) * r, 0.62, Math.cos((i / posts) * Math.PI * 2) * r);
+  for (let i = 0; i < posts; i++) {
+    const p = at(i);
+    g.add(cyl(0.04, 0.06, 0.62, gold, p.x, 0.31, p.z, 10));
+    g.add(mesh(new THREE.SphereGeometry(0.07, 12, 8), gold, p.x, 0.66, p.z));
+    const q = at(i + 1);
+    const mid = p.clone().lerp(q, 0.5);
+    mid.y -= 0.2; // it sags
+    g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(p, mid, q), 12, 0.025, 6), velvet));
+  }
+  return g;
+}
+
 // ---------- the map ----------
 export class CasinoMap {
   /**
-   * canvas: where to draw. places: [{ id, name, emoji, color, pos: [x, z] }] (a model each, in MODELS)
+   * canvas: where to draw. places: [{ id, name, emoji, color, pos: [x, z], soon }] (a model each, in MODELS;
+   *   a soon place is roped off, and you can't walk in)
    * here: where you are. look: your character. dave: put Dave by the roulette table?
    * onPick(id): you tapped a place on the map
    */
@@ -247,10 +318,11 @@ export class CasinoMap {
       pop.add(halo);
       const model = MODELS[p.id]?.(this.updates);
       if (model) pop.add(model);
-      const light = new THREE.PointLight(color, 6, 6, 1.6);
+      if (p.soon) pop.add(velvetRope());
+      const light = new THREE.PointLight(color, p.soon ? 3 : 6, 6, 1.6);
       light.position.set(0, 2.4, 0.6);
       root.add(light);
-      const label = tag(`${p.emoji} ${p.name}`, p.color);
+      const label = tag(`${p.emoji} ${p.name}${p.soon ? ' · SOON' : ''}`, p.color);
       label.position.set(0, 2.7, 0);
       root.add(label);
       const hit = mesh(new THREE.CylinderGeometry(1.6, 1.6, 2.8, 16), new THREE.MeshBasicMaterial({ visible: false }), 0, 1.4, 0);
@@ -350,8 +422,6 @@ export class CasinoMap {
     const neonCyan = new THREE.MeshBasicMaterial({ color: 0x2de0ff });
     s.add(box(w, 0.9, 0.3, wall, 0, 0.45, -d / 2), box(w, 0.06, 0.06, neonPink, 0, 0.93, -d / 2 + 0.16));
     for (const side of [-1, 1]) s.add(box(0.3, 0.9, d, wall, (side * w) / 2, 0.45, 0), box(0.06, 0.06, d, neonCyan, side * (w / 2 - 0.16), 0.93, 0));
-    // gold stanchions along the front, where the velvet rope would go
-    for (let i = -2; i <= 2; i++) s.add(cyl(0.05, 0.08, 0.6, gold, i * 2.2, 0.3, d / 2 - 0.3, 10));
   }
 
   buildAir() {
@@ -386,7 +456,7 @@ export class CasinoMap {
     this.camera.updateProjectionMatrix();
     // back off until the floor fits across, and top to bottom
     const tan = Math.tan(THREE.MathUtils.degToRad(FOV / 2));
-    this.fit = clamp(Math.max((FLOOR.w / 2 + 0.6) / (tan * this.camera.aspect), ((FLOOR.d / 2) * 0.9) / tan), 12, 32);
+    this.fit = clamp(Math.max((FLOOR.w / 2 + 0.6) / (tan * this.camera.aspect), ((FLOOR.d / 2) * 1.05) / tan), 12, 32);
   }
 
   // ---------- touch ----------
@@ -487,9 +557,9 @@ export class CasinoMap {
       p.label.position.y = 2.7 + Math.sin(t * 1.6 + p.i) * 0.07;
       const on = p.id === this.selected;
       const hot = on || p.id === this.hovered;
-      p.ringMat.opacity = on ? 0.75 + Math.sin(t * 6) * 0.25 : hot ? 0.85 : 0.45;
+      p.ringMat.opacity = on ? 0.75 + Math.sin(t * 6) * 0.25 : hot ? 0.85 : p.soon ? 0.25 : 0.45;
       p.haloMat.opacity = on ? 0.55 : hot ? 0.4 : 0.2;
-      p.light.intensity = on ? 11 : 6;
+      p.light.intensity = (on ? 11 : 6) * (p.soon ? 0.5 : 1);
     }
     if (this.beam.visible) {
       this.beamGrow = Math.min(1, this.beamGrow + dt * 2.5);
@@ -570,6 +640,7 @@ export class CasinoMap {
     this.sweeps.forEach((g, i) => g.rotation.set(0.55 + Math.sin(t * 0.5 + i * 2) * 0.25, 0, (i ? -1 : 1) * (0.5 + Math.sin(t * 0.37 + i) * 0.35)));
 
     // the camera: the intro swoop, then it follows what you're looking at, and sways a little
+    this.aim.z = clamp(this.aim.z, -FLOOR.d / 2 + 3, FLOOR.d / 2 - 4); // keep the floor filling the view
     this.target.lerp(this.aim, 1 - Math.exp(-dt * 3));
     const wantDist = this.selected || this.trip ? this.fit * 0.7 : this.fit;
     this.dist = THREE.MathUtils.lerp(this.dist, wantDist, 1 - Math.exp(-dt * 2.5));
