@@ -46,7 +46,10 @@ function roundedRect(w, h, r) {
 }
 
 // ---------- textures ----------
-function feltTexture(renderer) {
+// the felt's colours: classic green, or red velvet for the high-roller table
+const FELTS = { classic: ['#15864c', '#073d22'], highroller: ['#9a1832', '#3a0612'] };
+
+function feltTexture(renderer, style = 'classic') {
   const W = 2048;
   const H = 1536;
   const [c, g] = canvas(W, H);
@@ -55,8 +58,8 @@ function feltTexture(renderer) {
   const cy = H / 2;
 
   const bg = g.createRadialGradient(cx, cy, 200, cx, cy, W * 0.62);
-  bg.addColorStop(0, '#15864c');
-  bg.addColorStop(1, '#073d22');
+  bg.addColorStop(0, FELTS[style][0]);
+  bg.addColorStop(1, FELTS[style][1]);
   g.fillStyle = bg;
   g.fillRect(0, 0, W, H);
 
@@ -308,6 +311,7 @@ export function buildScenery(scene, renderer, opts = {}) {
   felt.position.y = TABLE_Y;
   felt.receiveShadow = true;
   scene.add(felt);
+  animated.felt = felt;
 
   // --- padded leather rail + gold trim + wooden body ---
   const ring = (w1, d1, r1, w2, d2, r2) => {
@@ -543,7 +547,18 @@ export function buildScenery(scene, renderer, opts = {}) {
   animated.motes = motes;
 
   // --- per-frame life ---
+  const felts = {};
+  let feltStyle = 'classic';
   return {
+    /** Swap the felt: 'classic' or 'highroller'. */
+    setFelt(style) {
+      const f = animated.felt;
+      if (!f || style === feltStyle) return;
+      felts[feltStyle] ??= f.material.map;
+      f.material.map = felts[style] ??= feltTexture(renderer, style);
+      f.material.needsUpdate = true;
+      feltStyle = style;
+    },
     update(t, dt) {
       for (const s of animated.bokeh) {
         const u = s.userData;

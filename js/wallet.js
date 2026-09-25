@@ -39,6 +39,11 @@ export function createWallet({ store, level }) {
       save();
       return n;
     },
+    /** A reward: straight into the wallet, not counted against the daily limit. */
+    gift(v) {
+      cash += v;
+      save();
+    },
     spend(v) {
       cash -= v;
       save();

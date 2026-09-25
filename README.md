@@ -177,6 +177,14 @@ Fake cards buy chips, not crowns. The store only takes money from your **👛 wa
 
 Every bet you make (one spin, on roulette or the slots) earns **XP**. Bigger bets earn more: 10 XP, +10 for every ×10 of stake ($1 → 10, $10 → 20, $100 → 30, $1,000+ → 40). Then the result: a win +10, or +20 when you get 5× your stake back and +30 at 20× (hello, straight-up number); a push +5, a loss +3. **Never more than 60 XP per spin.** Buying drinks earns XP too: 5, +5 for every ×10 of price (a lager 5, the whiskey 15), and **double for bottle service** (Pete's 30, Moët 40, Dom 50). The ring around your level in the top bar fills up; a new level gets you a spinning 3D gold medal, a bigger daily cash-out limit, and new store items to buy.
 
+### 🏆 GOALS: CHALLENGES, TROPHIES, THE LOYALTY CARD & PERKS
+Settings has a **🏆 Goals** tab:
+
+- **Daily challenges**: three a day (the same three for everyone), like *hit a straight-up number*, *win 2 spins in a row*, *order bottle service* or *lose 5 spins (we believe in you)*. Each pays XP and wallet money; finish all three for a bonus.
+- **Achievements**: twelve of them, from *Beginner's Luck* to *Whale Watching* ($10,000 on one spin). Each one spins onto the screen as a **3D trophy** and then stands on the **trophy shelves** behind your character.
+- **🎟️ Loyalty card**: one stamp for every $100 you lose. Fill all ten and redeem it: a rubber stamp slams down **REDEEMED**, the card flips over, and your prize is… **nothing**. Thank you for your loyalty.
+- **Level perks**: **🛋️ VIP booth** at level 5 (bottle service 20% off), **🎩 High-roller table** at level 10 (red velvet felt and velvet ropes around the wheel, minimum $100 a spin, ×1.5 XP) and **🐋 Whale mode** at level 15 (enormous chips and an inflatable whale bobbing behind the wheel, minimum $1,000 a spin, ×2 XP). Switch the last two on and off whenever you like.
+
 ### 📺 WATCH AN AD, GET $100
 Completely broke? At exactly **$0** with nothing on the table, a **Watch ad: +$100** button appears. Enjoy a message from our totally real sponsors: Hot Singles (they're dice), Waiter Academy™, Grandma's Cookies, Download More Money.biz and friends. It's "Ad 1 of 1"… until it becomes **Ad 2 of 1**. The skip button counts down, then refuses. After 15 seconds, claim your $100.
 
@@ -221,13 +229,13 @@ On narrow screens the table flips vertical: 0 on top, numbers running down the s
 - ~~🎩 **A character and a hat store**~~ ✅ **SHIPPED**
 - 🎲 **Craps**, purely so we can put the word "craps" in a README
 - 🧓 **Your grandma**, who shows up and tells you to stop after 3 losses in a row
-- 🎟️ **Loyalty card**, earn points for every fake dollar lost and redeem them for absolutely nothing
+- ~~🎟️ **Loyalty card**, earn points for every fake dollar lost and redeem them for absolutely nothing~~ ✅ **SHIPPED**
 - 📉 **Fake stock ticker** of your net worth, with dramatic crash sound effects
 - 🌙 **Night mode**, even though casinos famously have no clocks or windows
 - 🔁 **Martingale button**, which doubles your bet after every loss until the heat death of the universe
 - 🎤 **Hype announcer** who screams "HE'S ON FIRE" after two wins in a row
 - ~~🎁 **Daily login bonus** of $1, delivered via a 30-second unskippable animation~~ ✅ **SHIPPED**
-- 🐋 **Whale mode**: the chips are 10× bigger and the table gets a velvet rope
+- ~~🐋 **Whale mode**: the chips are 10× bigger and the table gets a velvet rope~~ ✅ **SHIPPED** (level 15)
 - 🛸 **Alien abduction**: a UFO beams your chips away. It's in the terms and conditions.
 - 🎮 **Controller support**, because roulette on a gamepad is how nature intended
 - 🥚 **Easter eggs** that we will absolutely forget where we hid
@@ -302,7 +310,11 @@ js/avatar.js          your 3D character, the store catalogue, the turntable
 js/settings.js        the top-right Settings page: character, store, settings
 js/wallet.js          the wallet the store takes, and its daily cash-out limit
 js/levels.js          XP per bet, levels, and the level each store item needs
-js/flair3d.js         the 3D overlay: win styles, the cash-out wallet, level-up medal
+js/flair3d.js         the 3D overlay: win styles, the cash-out wallet, level-up medal, trophies, loyalty card
+js/goals.js           daily challenges, achievements, the loyalty card, level perks
+js/events.js          a tiny event bus (spins, drinks, selfies…) the goals listen to
+js/trophies3d.js      the 3D trophies and the shelves behind your character
+js/perks3d.js         the high-roller velvet ropes and felt, and the inflatable whale
 js/ads.js             the totally real sponsors ($100 for the broke)
 js/slots.js           DRAGON RUSH WIN BIG: tumbles, free spins, buy bonus, autoplay
 js/rush-math.js       the slot maths: clusters, tumbles, ×1024 multiplier spots

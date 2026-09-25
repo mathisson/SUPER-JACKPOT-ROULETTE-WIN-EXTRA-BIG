@@ -4,6 +4,7 @@
 // The maths lives in rush-math.js (simulated at ~96% return), the 3D grid in slots3d.js.
 
 import { celebrate, confetti } from './fx.js';
+import { emit } from './events.js';
 import { DragonRush3D, SYMBOL_INFO } from './slots3d.js';
 import { BUYS, MULT_MAX, PAYS, SYMS, freeSpinsFor, newGrid, newSpots, playSpin } from './rush-math.js';
 
@@ -621,6 +622,7 @@ export function createSlots({ host, sound, music, getBalance, adjust, toast, onO
 
   function awardFree(n, reason, retrigger = false, start = 0) {
     if (!retrigger) {
+      emit('freespins');
       fsSpots = newSpots();
       freeWin = 0;
       machine.resetSpots();

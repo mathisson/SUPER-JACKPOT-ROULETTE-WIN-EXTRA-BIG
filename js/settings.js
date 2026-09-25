@@ -3,6 +3,7 @@
 
 import { AvatarStage, BASE, CATALOG, SLOTS, REQUIRED_SLOTS, DEFAULT_LOOK, portrait } from './avatar.js';
 import { itemLevel } from './levels.js';
+import { emit } from './events.js';
 
 const PHONE_SLOTS = new Set(['phoneSkin', 'wallpaper']);
 
@@ -17,8 +18,9 @@ const byId = (id) => CATALOG.find((c) => c.id === id);
  * @param wallet    the store only takes wallet money ({ cash(), spend(v) })
  * @param levels    fancier items need a level ({ level(), progress() })
  * @param onWithdraw  open the cash-out dialog
+ * @param goals     the Goals tab: { html(), input(el), trophies() }
  */
-export function createSettings({ button, store, sound, toast, wallet, levels, onWithdraw, prefs, pause3d, resume3d, preview: demo = {} }) {
+export function createSettings({ button, store, sound, toast, wallet, levels, goals, onWithdraw, prefs, pause3d, resume3d, preview: demo = {} }) {
   const getBalance = () => wallet.cash();
   let look = { ...DEFAULT_LOOK, ...store.get('fr.look', {}) };
   let owned = new Set(store.get('fr.owned', ['tshirt']));
@@ -65,6 +67,7 @@ export function createSettings({ button, store, sound, toast, wallet, levels, on
         <div class="st-tabs" role="tablist">
           <button type="button" data-tab="character">👤 Character</button>
           <button type="button" data-tab="store">🛍️ Store</button>
+          <button type="button" data-tab="goals">🏆 Goals</button>
           <button type="button" data-tab="settings">⚙️ Settings</button>
         </div>
         <div class="st-body"></div>
@@ -80,6 +83,7 @@ export function createSettings({ button, store, sound, toast, wallet, levels, on
     addEventListener('keydown', onKey, true);
     pause3d();
     stage = new AvatarStage(el.querySelector('.st-stage'), look);
+    stage.setShelf(goals.trophies());
     el.querySelector('.st-close').addEventListener('click', close);
     el.querySelector('.st-withdraw').addEventListener('click', () => onWithdraw());
     el.querySelector('.st-tabs').addEventListener('click', (e) => {
@@ -149,7 +153,7 @@ export function createSettings({ button, store, sound, toast, wallet, levels, on
     el.querySelectorAll('.st-tabs [data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === which));
     renderFoot();
     const body = el.querySelector('.st-body');
-    body.innerHTML = which === 'store' ? storeHtml() : which === 'settings' ? prefsHtml() : characterHtml();
+    body.innerHTML = which === 'store' ? storeHtml() : which === 'settings' ? prefsHtml() : which === 'goals' ? goals.html() : characterHtml();
     body.scrollTop = 0;
   }
 
@@ -243,7 +247,9 @@ export function createSettings({ button, store, sound, toast, wallet, levels, on
   function onBodyClick(e) {
     const t = e.target.closest('button');
     if (!t) return;
-    if (t.dataset.set) {
+    if (goals.input(t)) {
+      show(tab);
+    } else if (t.dataset.set) {
       setLook({ [t.dataset.set]: t.dataset.val || null });
       show(tab);
     } else if (t.dataset.goto) {
@@ -282,6 +288,7 @@ export function createSettings({ button, store, sound, toast, wallet, levels, on
       }
       wallet.spend(item.price);
       owned.add(item.id);
+      emit('buy', { item });
       trying = null;
       sound.cash();
       setLook({ [item.slot]: item.id });
@@ -291,6 +298,7 @@ export function createSettings({ button, store, sound, toast, wallet, levels, on
   }
 
   function onToggle(e) {
+    if (e.target.dataset.perk) return goals.input(e.target);
     const id = e.target.dataset.pref;
     if (!id) return;
     prefs.find((p) => p.id === id)?.set(e.target.checked);
@@ -312,6 +320,7 @@ export function createSettings({ button, store, sound, toast, wallet, levels, on
       const top = body.scrollTop;
       show(tab);
       body.scrollTop = top;
+      stage?.setShelf(goals.trophies());
     },
     /** where the wallet sits on screen right now (for the cash-out animation) */
     walletEl: () => el?.querySelector('.st-wallet'),
