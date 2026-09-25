@@ -60,6 +60,16 @@ let spinning = false;
 let slots = null;          // the slot machine room, created further down
 let blackjack = null;      // the blackjack room, likewise
 
+// only one 3D room renders at a time: the phone, settings etc. pause whichever room you're in
+function pause3dRooms() {
+  wheel.pause();
+  blackjack?.pause();
+}
+function resume3dRooms() {
+  if (blackjack?.isOpen()) blackjack.resume();
+  else if (!slots?.isOpen()) wheel.resume();
+}
+
 const $ = (id) => document.getElementById(id);
 const money = (n) =>
   (n < 0 ? '-' : '') + '$' + Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 0 });
@@ -1305,8 +1315,8 @@ const tab = createTab({
     balance += v;
     render();
   },
-  pause3d: () => wheel.pause(),
-  resume3d: () => !slots?.isOpen() && wheel.resume(),
+  pause3d: () => pause3dRooms(),
+  resume3d: () => resume3dRooms(),
   isBusy: () =>
     spinning || fxActive() || !!document.querySelector('dialog[open]') ||
     ['vip-party-on', 'bonus-active', 'hangover-on', 'phone-on', 'settings-on', 'in-blackjack'].some((c) => document.body.classList.contains(c)),
@@ -1362,8 +1372,8 @@ const hangover = createHangover({
     balance -= v;
     render();
   },
-  pause3d: () => wheel.pause(),
-  resume3d: () => !slots?.isOpen() && wheel.resume(),
+  pause3d: () => pause3dRooms(),
+  resume3d: () => resume3dRooms(),
   setLoud: (on) => {
     if (!sound.ctx) return;
     sound.master.gain.setTargetAtTime(on ? 1.9 : 1, sound.ctx.currentTime, 0.3);
@@ -1420,8 +1430,8 @@ const settings = createSettings({
   levels,
   goals,
   onWithdraw: () => openCashOut(),
-  pause3d: () => wheel.pause(),
-  resume3d: () => !slots?.isOpen() && wheel.resume(),
+  pause3d: () => pause3dRooms(),
+  resume3d: () => resume3dRooms(),
   prefs: [
     { id: 'sfx', label: '🔊 Sound effects', desc: 'Chips, spins, dings, Dave.', get: () => !sound.muted, set: (on) => sound.muted === on && $('muteBtn').click() },
     { id: 'music', label: '🎵 Lobby music', desc: 'The big band, and your bottle-party songs.', get: () => musicOn, set: (on) => musicOn !== on && $('musicBtn').click() },
@@ -1590,12 +1600,12 @@ phone = createPhone({
     balance -= v;
     render();
   },
-  pause3d: () => wheel.pause(),
-  resume3d: () => !slots?.isOpen() && wheel.resume(),
+  pause3d: () => pause3dRooms(),
+  resume3d: () => resume3dRooms(),
   canOpen: () =>
     !spinning && !fxActive() && !document.querySelector('dialog[open]') &&
-    !['vip-party-on', 'bonus-active', 'kitchen-on', 'hangover-on', 'settings-on', 'in-blackjack'].some((c) => document.body.classList.contains(c)),
-  roomVisible: () => !slots?.isOpen(),
+    !['vip-party-on', 'bonus-active', 'kitchen-on', 'hangover-on', 'settings-on'].some((c) => document.body.classList.contains(c)),
+  roomVisible: () => !slots?.isOpen() && !blackjack?.isOpen(),
   bannersOn: () => prefs.banners,
 });
 
@@ -1658,8 +1668,10 @@ blackjack = createBlackjack({
     wheel.pause(); // only one 3D room renders at a time
   },
   onClose: () => wheel.resume(),
-  onRound: ({ net, staked, multiple }) => {
-    levels.bet(net > 0 ? 'win' : net < 0 ? 'loss' : 'push', staked, multiple);
+  booze,
+  highLimit: () => goals.perk('highlimit'),
+  onRound: ({ net, staked, multiple, mult }) => {
+    levels.bet(net > 0 ? 'win' : net < 0 ? 'loss' : 'push', staked, multiple, mult);
     emit('spin', { game: 'blackjack', net, staked, multiple });
     if (balance < 1) emit('broke');
   },

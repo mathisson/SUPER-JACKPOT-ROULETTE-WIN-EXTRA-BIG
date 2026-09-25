@@ -6,21 +6,42 @@ import { Stage3D, texFrom } from './kitchen3d.js';
 import { buildScenery } from './scenery.js';
 import { buildAvatar, animateAvatar, disposeAvatar, DEFAULT_LOOK } from './avatar.js';
 
-const TABLE_Y = -0.42; // the felt (same height as the roulette table, so the casino fits around it)
+const TABLE_Y = -0.42;
+const FLOOR_Y = -1.34; // where everyone's shoes are // the felt (same height as the roulette table, so the casino fits around it)
 const R = 3.7; // the table's curve
 const BACK_Z = -1.9; // the dealer's straight edge
 export const CARD_W = 0.5;
 export const CARD_H = 0.7;
-const SHOE = new THREE.Vector3(2.55, TABLE_Y + 0.42, -1.35);
+const SHOE = new THREE.Vector3(3.05, TABLE_Y + 0.42, -1.72);
+const DISCARD = new THREE.Vector3(-3.05, TABLE_Y + 0.11, -1.72);
+
+// the other seats (degrees round the table from straight ahead; + is the dealer's left, your right)
+export const SEAT_ANGLES = [82, 60, -60, -82];
+const polar = (r, deg, y) => {
+  const a = (deg * Math.PI) / 180;
+  return new THREE.Vector3(Math.sin(a) * r, y, BACK_Z + Math.cos(a) * r);
+};
+
+const HAND_X = { 1: [0], 2: [1.25, -1.25], 3: [1.25, 0, -1.25] };
+const handX = (h, n) => (HAND_X[n] || HAND_X[3])[h] ?? 0;
+export const MAX_HANDS = 3;
 
 // where things go on the felt
 export const SPOTS = {
   dealer: (i) => new THREE.Vector3(-0.55 + i * 0.36, TABLE_Y + 0.006 + i * 0.002, -1.0),
-  hand: (h, n, i) => {
-    const x = n === 1 ? 0 : h === 0 ? -1.0 : 1.0;
-    return new THREE.Vector3(x - 0.2 + i * 0.3, TABLE_Y + 0.006 + i * 0.002, 0.55 - i * 0.03);
+  hand: (h, n, i) => new THREE.Vector3(handX(h, n) - 0.2 + i * 0.3, TABLE_Y + 0.006 + i * 0.002, 0.55 - i * 0.03),
+  bet: (h, n) => new THREE.Vector3(handX(h, n), TABLE_Y, 1.35),
+  // the side bets, either side of your main circle
+  side: (kind) => new THREE.Vector3(kind === 'pairs' ? -0.64 : 0.64, TABLE_Y, 1.08),
+  tip: () => new THREE.Vector3(0.55, TABLE_Y, -1.15),
+  // a bot's cards fan out along the curve, turned to face their seat
+  seatCard: (deg, i) => {
+    const a = (deg * Math.PI) / 180;
+    const tangent = new THREE.Vector3(Math.cos(a), 0, -Math.sin(a));
+    return polar(2.35, deg, TABLE_Y + 0.006 + i * 0.002).addScaledVector(tangent, -0.15 + i * 0.28);
   },
-  bet: (h, n) => new THREE.Vector3(n === 1 ? 0 : h === 0 ? -1.0 : 1.0, TABLE_Y, 1.35),
+  seatRot: (deg) => (deg * Math.PI) / 180,
+  seatBet: (deg) => polar(3.1, deg, TABLE_Y),
 };
 
 const CHIP_COLORS = { 1: '#f2f2f2', 5: '#d62b2b', 25: '#1f9d4c', 100: '#161616', 500: '#7b3fbf', 1000: '#e8a321' };
@@ -132,7 +153,9 @@ function cardBack() {
   return c;
 }
 
-function feltCanvas() {
+const FELTS = { classic: ['#16864d', '#063b21'], highlimit: ['#8a1830', '#34050f'] };
+
+function feltCanvas(style = 'classic') {
   const W = 2048;
   const H = 1024;
   const c = document.createElement('canvas');
@@ -142,8 +165,8 @@ function feltCanvas() {
   const k = W / (2 * R);
   const cx = W / 2;
   const bg = x.createRadialGradient(cx, 0, 100, cx, 0, W * 0.6);
-  bg.addColorStop(0, '#16864d');
-  bg.addColorStop(1, '#063b21');
+  bg.addColorStop(0, FELTS[style][0]);
+  bg.addColorStop(1, FELTS[style][1]);
   x.fillStyle = bg;
   x.fillRect(0, 0, W, H);
   const img = x.getImageData(0, 0, W, H);
@@ -185,25 +208,31 @@ function feltCanvas() {
   x.fillStyle = gold;
   arcText('✦ INSURANCE PAYS 2 TO 1 ✦', 2.425, 38, Math.PI * 0.78, Math.PI * 0.22);
   // betting circles (one, or two when you split)
-  const circle = (bx, bz, label) => {
+  const circle = (bx, bz, label, r = 0.36) => {
     const px = cx + bx * k;
     const py = (bz - BACK_Z) * k;
     x.strokeStyle = gold;
     x.lineWidth = 6;
     x.beginPath();
-    x.arc(px, py, 0.36 * k, 0, Math.PI * 2);
+    x.arc(px, py, r * k, 0, Math.PI * 2);
     x.stroke();
     x.lineWidth = 2;
     x.beginPath();
-    x.arc(px, py, 0.3 * k, 0, Math.PI * 2);
+    x.arc(px, py, (r - 0.06) * k, 0, Math.PI * 2);
     x.stroke();
-    x.fillStyle = 'rgba(232, 195, 90, 0.5)';
-    x.font = 'bold 26px Georgia, serif';
-    x.fillText(label, px, py + 0.44 * k);
+    x.fillStyle = 'rgba(232, 195, 90, 0.55)';
+    x.font = `bold ${r < 0.3 ? 20 : 26}px Georgia, serif`;
+    x.fillText(label, px, r < 0.3 ? py : py + (r + 0.08) * k);
   };
   circle(0, 1.35, 'BET');
-  circle(-1.0, 1.35, 'SPLIT');
-  circle(1.0, 1.35, 'SPLIT');
+  circle(-1.25, 1.35, '✦');
+  circle(1.25, 1.35, '✦');
+  circle(-0.64, 1.08, 'PAIRS', 0.2);
+  circle(0.64, 1.08, '21+3', 0.2);
+  for (const deg of SEAT_ANGLES) {
+    const a = (deg * Math.PI) / 180;
+    circle(Math.sin(a) * 3.1, BACK_Z + Math.cos(a) * 3.1, '');
+  }
   // the dealer's card box
   x.strokeStyle = 'rgba(232, 195, 90, 0.4)';
   x.setLineDash([14, 10]);
@@ -239,8 +268,24 @@ function chipMesh(value) {
   return new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.045, 28), [side, face, face]);
 }
 
+const MADAME_LOOK = {
+  ...DEFAULT_LOOK,
+  skin: '#f1c27d',
+  hair: 'bun',
+  hairColor: '#1c120c',
+  facial: 'none',
+  face: 'cool',
+  build: 'slim',
+  top: 'tux',
+  neck: 'chain',
+  glasses: 'monocle',
+  shirt: '#f4f4f4',
+  pants: '#1f1f24',
+  shoes: '#0a0a0a',
+};
+
 export class BlackjackTable extends Stage3D {
-  constructor(container) {
+  constructor(container, { highLimit = false } = {}) {
     super(container, 40);
     const s = this.scene;
     this.scenery = buildScenery(s, this.renderer, { table: false });
@@ -256,6 +301,7 @@ export class BlackjackTable extends Stage3D {
     warm.position.set(-4, 3, -3);
     s.add(warm);
 
+    this.highLimit = highLimit;
     this.buildTable();
     this.faces = new Map(); // card textures, made once
     this.backTex = texFrom(cardBack(), this.renderer);
@@ -263,15 +309,17 @@ export class BlackjackTable extends Stage3D {
     this.cards = [];
     this.stacks = new Map(); // key → chip group
 
-    this.dealer = buildAvatar(DEALER_LOOK);
+    this.dealer = buildAvatar(highLimit ? MADAME_LOOK : DEALER_LOOK);
     this.dealer.root.scale.setScalar(0.74);
-    this.dealer.root.position.set(0, TABLE_Y + 0.05, -2.45);
+    this.dealer.root.position.set(0, 0, -2.45);
+    this.standOnFloor(this.dealer);
     s.add(this.dealer.root);
+    this.bots = [];
     this.dealerEmote = null;
     this.reach = 0; // 0..1, how far the dealer's arm is out (dealing)
 
-    this.camera.position.set(0, 3.7, 5.3);
-    this.lookAt = new THREE.Vector3(0, 0.12, -0.6);
+    this.camera.position.set(0, 4.1, 5.4);
+    this.lookAt = new THREE.Vector3(0, -0.1, -0.35);
     this.camera.lookAt(this.lookAt);
     this.onFrame = null;
   }
@@ -287,7 +335,8 @@ export class BlackjackTable extends Stage3D {
     const pos = geo.attributes.position;
     const uv = geo.attributes.uv;
     for (let i = 0; i < pos.count; i++) uv.setXY(i, (pos.getX(i) + R) / (2 * R), 1 + pos.getY(i) / R);
-    const felt = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: texFrom(feltCanvas(), this.renderer), roughness: 0.95 }));
+    const felt = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: texFrom(feltCanvas(this.highLimit ? 'highlimit' : 'classic'), this.renderer), roughness: 0.95 }));
+    this.felt = felt;
     felt.rotation.x = -Math.PI / 2;
     felt.position.set(0, TABLE_Y, BACK_Z);
     felt.receiveShadow = true;
@@ -313,6 +362,32 @@ export class BlackjackTable extends Stage3D {
     const trimPts = pts.map((p) => p.clone().setY(TABLE_Y + 0.005).sub(new THREE.Vector3(0, 0, 0)).multiply(new THREE.Vector3(0.975, 1, 1)));
     const trim = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(trimPts.map((p) => new THREE.Vector3(p.x, p.y, BACK_Z + (p.z - BACK_Z) * 0.975))), 96, 0.018, 6), new THREE.MeshStandardMaterial({ color: 0xe8c35a, metalness: 1, roughness: 0.25 }));
     s.add(trim);
+    // a carpet under the table, for the dealer and the players to stand on
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const g = c.getContext('2d');
+    g.fillStyle = '#3a0c16';
+    g.fillRect(0, 0, 256, 256);
+    g.strokeStyle = 'rgba(232, 195, 90, 0.35)';
+    g.lineWidth = 3;
+    for (let i = 0; i < 256; i += 64) {
+      g.beginPath();
+      g.moveTo(i + 32, 0);
+      g.lineTo(i + 64, 32);
+      g.lineTo(i + 32, 64);
+      g.lineTo(i, 32);
+      g.closePath();
+      g.stroke();
+    }
+    const carpetTex = texFrom(c, this.renderer);
+    carpetTex.wrapS = carpetTex.wrapT = THREE.RepeatWrapping;
+    carpetTex.repeat.set(10, 10);
+    const floor = new THREE.Mesh(new THREE.CircleGeometry(11, 64), new THREE.MeshStandardMaterial({ map: carpetTex, roughness: 0.95 }));
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = FLOOR_Y;
+    floor.receiveShadow = true;
+    s.add(floor);
+
     // the dealer's chip tray
     const trayMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.3, metalness: 0.4 });
     const tray = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.08, 0.5), trayMat);
@@ -333,13 +408,13 @@ export class BlackjackTable extends Stage3D {
     const deck = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.3, 0.8), new THREE.MeshStandardMaterial({ color: 0x7a1024, roughness: 0.6 }));
     deck.position.set(0, 0.05, 0.02);
     shoe.add(deck);
-    shoe.position.set(SHOE.x, TABLE_Y + 0.2, SHOE.z - 0.2);
+    shoe.position.set(SHOE.x, TABLE_Y + 0.2, SHOE.z - 0.15);
     shoe.rotation.set(0.2, -0.5, 0);
     shoe.castShadow = true;
     s.add(shoe);
     // discard pile on the other side
     const discard = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.22, 0.75), new THREE.MeshStandardMaterial({ color: 0x20120a, roughness: 0.4 }));
-    discard.position.set(-2.55, TABLE_Y + 0.11, -1.45);
+    discard.position.copy(DISCARD);
     discard.rotation.y = 0.5;
     s.add(discard);
   }
@@ -351,7 +426,7 @@ export class BlackjackTable extends Stage3D {
   }
 
   /** Deal a card from the shoe to `to`, face up or down. Resolves when it lands. */
-  deal(card, to, faceUp = true) {
+  deal(card, to, faceUp = true, rotY = 0) {
     const front = new THREE.MeshStandardMaterial({ map: this.faceTex(card.rank, card.suit), roughness: 0.55 });
     const back = new THREE.MeshStandardMaterial({ map: this.backTex, roughness: 0.55 });
     const e = this.edgeMat;
@@ -371,7 +446,7 @@ export class BlackjackTable extends Stage3D {
           const k = 1 - Math.pow(1 - t, 3);
           m.position.lerpVectors(from, to, k);
           m.position.y += Math.sin(t * Math.PI) * 0.35;
-          m.rotation.y = -0.5 * (1 - k) + (Math.random() - 0.5) * 0.0;
+          m.rotation.y = -0.5 * (1 - k) + rotY * k;
           m.rotation.z = faceUp ? Math.PI * (1 - k) : Math.PI;
         },
         () => {
@@ -421,7 +496,7 @@ export class BlackjackTable extends Stage3D {
     const list = this.cards;
     this.cards = [];
     if (!list.length) return Promise.resolve();
-    const target = new THREE.Vector3(-2.55, TABLE_Y + 0.3, -1.45);
+    const target = DISCARD.clone().setY(TABLE_Y + 0.3);
     return new Promise((res) => {
       const from = list.map((c) => c.mesh.position.clone());
       this.tween(
@@ -497,17 +572,105 @@ export class BlackjackTable extends Stage3D {
     );
   }
 
+  /** Put a character's shoes on the carpet. */
+  standOnFloor(a) {
+    a.root.position.y = 0;
+    a.root.updateMatrixWorld(true);
+    a.root.position.y = FLOOR_Y - new THREE.Box3().setFromObject(a.root).min.y;
+    a.restY = a.root.position.y;
+  }
+
+  /** Someone walks from `from` to `to` ({ x, z } on the floor) and turns to `face` (the waiter, the pit boss). */
+  addPerson(look, from, to, face = 0) {
+    const a = buildAvatar(look);
+    a.root.scale.setScalar(0.7);
+    this.standOnFloor(a);
+    const f = new THREE.Vector3(from.x, a.restY, from.z);
+    const t = new THREE.Vector3(to.x, a.restY, to.z);
+    a.root.position.copy(f);
+    this.scene.add(a.root);
+    const person = { a, deg: 0, phase: Math.random() * 10, walk: null, emote: null, emoteUntil: 0 };
+    this.bots.push(person);
+    person.arrived = this.walk(person, f, t, face);
+    return person;
+  }
+
+  /** They walk off to `to` and are gone. */
+  sendAway(person, to) {
+    const out = new THREE.Vector3(to.x, person.a.restY, to.z);
+    return this.walk(person, person.a.root.position.clone(), out, 0).then(() => {
+      this.scene.remove(person.a.root);
+      disposeAvatar(person.a);
+      this.bots = this.bots.filter((b) => b !== person);
+    });
+  }
+
+  /** The table's mood: -5 (ice cold, blue) … +5 (on fire, orange). */
+  setHeat(h) {
+    const m = this.felt?.material;
+    if (!m) return;
+    m.emissive = new THREE.Color(h > 0 ? 0xff6a00 : 0x2a6cff);
+    m.emissiveIntensity = Math.min(1, Math.abs(h) / 5) * 0.28;
+    m.needsUpdate = true;
+  }
+
+  /** Another player takes the seat at `deg`: walks in from the side (or is simply there). */
+  addBot(look, deg, walkIn = true) {
+    const a = buildAvatar(look);
+    a.root.scale.setScalar(0.68);
+    this.standOnFloor(a);
+    const seat = polar(4.4, deg, a.restY);
+    const from = polar(9.5, deg + Math.sign(deg) * 25, a.restY);
+    a.root.position.copy(walkIn ? from : seat);
+    const face = (deg * Math.PI) / 180 + Math.PI; // towards the middle of the table
+    a.root.rotation.y = face;
+    this.scene.add(a.root);
+    const bot = { a, deg, phase: Math.random() * 10, walk: null, emote: null, emoteUntil: 0 };
+    this.bots.push(bot);
+    if (walkIn) this.walk(bot, from, seat, face);
+    return bot;
+  }
+
+  /** They get up and leave. */
+  removeBot(bot) {
+    const out = polar(9.5, bot.deg + Math.sign(bot.deg) * 25, bot.a.restY);
+    return this.walk(bot, bot.a.root.position.clone(), out, Math.atan2(out.x - bot.a.root.position.x, out.z - bot.a.root.position.z)).then(() => {
+      this.scene.remove(bot.a.root);
+      disposeAvatar(bot.a);
+      this.bots = this.bots.filter((b) => b !== bot);
+    });
+  }
+
+  walk(bot, from, to, faceAtEnd) {
+    const heading = Math.atan2(to.x - from.x, to.z - from.z);
+    const dur = Math.max(1.2, from.distanceTo(to) / 3.2);
+    return new Promise((res) => {
+      bot.walk = { from, to, heading, faceAtEnd, t: 0, dur, res };
+    });
+  }
+
+  botGesture(bot, emote, secs = 2.2) {
+    bot.emote = emote;
+    bot.emoteUntil = this.clock.elapsedTime + secs;
+  }
+
+  botHead(bot) {
+    const v = new THREE.Vector3();
+    bot.a.head.getWorldPosition(v);
+    return v.add(new THREE.Vector3(0, 0.62, 0));
+  }
+
   /** The dealer does a little something: an emote name from the store, for a few seconds. */
   gesture(emote, secs = 2.5) {
     this.dealerEmote = emote;
     this.emoteUntil = this.clock.elapsedTime + secs;
   }
 
-  /** Where a point in the room is on screen (for the HTML labels and speech bubble). */
+  /** Where a point in the room is, in px from the canvas's top-left (for the HTML labels and bubbles). */
   screen(v) {
     const p = v.clone().project(this.camera);
-    const r = this.renderer.domElement.getBoundingClientRect();
-    return { x: r.left + ((p.x + 1) / 2) * r.width, y: r.top + ((1 - p.y) / 2) * r.height };
+    const el = this.renderer.domElement;
+    return { x: ((p.x + 1) / 2) * el.clientWidth, y: ((1 - p.y) / 2) * el.clientHeight };
   }
 
   dealerHead() {
@@ -520,6 +683,33 @@ export class BlackjackTable extends Stage3D {
     this.scenery.update(t, dt);
     if (this.dealerEmote && t > this.emoteUntil) this.dealerEmote = null;
     animateAvatar(this.dealer, t, { emote: this.dealerEmote });
+    for (const b of this.bots) {
+      const w = b.walk;
+      if (w) {
+        w.t = Math.min(1, w.t + dt / w.dur);
+        b.a.root.position.lerpVectors(w.from, w.to, w.t);
+        b.a.root.position.y = b.a.restY + Math.abs(Math.sin(w.t * w.dur * 9)) * 0.08; // a bouncy walk
+        b.a.root.rotation.y = w.t < 0.9 ? w.heading : w.faceAtEnd;
+        const swing = Math.sin(w.t * w.dur * 9) * 0.6;
+        animateAvatar(b.a, t + b.phase);
+        b.a.armL.g.rotation.x = swing;
+        b.a.armR.g.rotation.x = -swing;
+        if (b.a.legs?.[0]) {
+          b.a.legs[0].rotation.x = swing * 0.8;
+          b.a.legs[1].rotation.x = -swing * 0.8;
+        }
+        if (w.t >= 1) {
+          b.walk = null;
+          b.a.root.position.y = b.a.restY;
+          b.a.root.rotation.y = w.faceAtEnd;
+          b.a.legs?.forEach?.((l) => (l.rotation.x = 0));
+          w.res();
+        }
+        continue;
+      }
+      if (b.emote && t > b.emoteUntil) b.emote = null;
+      animateAvatar(b.a, t + b.phase, { emote: b.emote });
+    }
     // reaching out to deal
     this.reachNow = (this.reachNow || 0) + ((this.reach || 0) - (this.reachNow || 0)) * Math.min(1, dt * 14);
     if (!this.dealerEmote && this.reachNow > 0.01) {
@@ -527,13 +717,14 @@ export class BlackjackTable extends Stage3D {
       this.dealer.armR.g.rotation.z = 0.12 + 0.35 * this.reachNow;
     }
     // keep the camera steady, with a gentle breathing drift
-    this.camera.position.set(Math.sin(t * 0.25) * 0.05, 3.7 + Math.sin(t * 0.4) * 0.02, 5.3);
+    this.camera.position.set(Math.sin(t * 0.25) * 0.05, 4.1 + Math.sin(t * 0.4) * 0.02, 5.4);
     this.camera.lookAt(this.lookAt);
     this.onFrame?.(dt, t);
   }
 
   dispose() {
     disposeAvatar(this.dealer);
+    this.bots.forEach((b) => disposeAvatar(b.a));
     this.faces.forEach((t) => t.dispose());
     super.dispose();
   }
